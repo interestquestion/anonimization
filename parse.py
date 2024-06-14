@@ -89,3 +89,52 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
 
         last_index = index + len(word["text"])
     return names_positions
+
+
+import re
+
+def get_address_indices_algo(text):
+    address_levels = [
+        ["респ\.","республика","край","область","обл\.","г\.ф\.з\.","а\.окр\."],
+        ["пос\.","поселение","р-н","район","с\/с","сельсовет"],
+        ["г\.","город","пгт\.","рп\.","кп\.","гп\.","п\.","поселок","аал","арбан","аул","в-ки","выселки","г-к","заимка","з-ка","починок","п-к","киш\.","кишлак","п\.ст\.","ж\/д","м-ко","местечко","деревня","с\.","село","сл\.","ст\.","станция","ст-ца","станица","у\.","улус","х\.","хутор","рзд\.","разъезд","зим\.","зимовье","д\."],
+        ["ал\.","аллея","б-р","бульвар","взв\.","взд\.","въезд","дор\.","дорога","ззд\.","заезд","километр","к-цо","кольцо","лн\.","линия","мгстр\.","магистраль","наб\.","набережная","пер-д","переезд","пер\.","переулок","пл-ка","площадка","пл\.","площадь","пр-кт\.","проспект","проул\.","проулок","рзд\.","разъезд","ряд","с-р","сквер","с-к","спуск","сзд\.","съезд","тракт","туп\.","тупик","ул\.","улица","ш\.","шоссе"],
+        ["влд\.","владение","г-ж","гараж","д\.","дом","двлд\.","домовладение","зд\.","здание","з\/у","участок","кв\.","квартира","ком\.","комната","подв\.","подвал","кот\.","котельная","п-б","погреб","к\.","корпус","офис","пав\.","павильон","помещ\.","помещение","раб\.уч\.","скл\.","склад","соор\.","сооружение","стр\.","строение","торг\.зал\.","цех"]
+    ]
+
+    address_regex = re.compile(
+        r'(' + '|'.join([r'|'.join(level) for level in address_levels]) + r')',
+        re.IGNORECASE
+    )
+
+    matches = []
+    for match in address_regex.finditer(text):
+        matches.append((match.start(), match.end()))
+
+    return matches
+
+def find_addresses_algo(text):
+    indices = get_address_indices_algo(text)
+    current_address = ""
+    start_index = -1
+    end_index = -1
+    addresses = []
+
+    for start, end in indices:
+        if start_index == -1:
+            start_index = start
+
+        part = text[start:end]
+        current_address += part + " "
+        end_index = end
+
+        if re.search(r'[,.!?;]', text[end:]):
+            addresses.append((current_address.strip(), start_index, end_index))
+            current_address = ""
+            start_index = -1
+            end_index = -1
+
+    if current_address:
+        addresses.append((current_address.strip(), start_index, end_index))
+
+    return [(start, end) for _, start, end in addresses]

@@ -155,3 +155,31 @@ def get_bd_positions(text) -> list[tuple[int, int]]:
     for match in re.finditer(r"\d{2}\.\d{2}\.\d{4}", text):
         bd_positions.append((match.start(), match.end()))
     return bd_positions
+
+def extract_complex_address_indices(text):
+    big_cities = [
+        'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Нижний Новгород',
+        'Казань', 'Челябинск', 'Омск', 'Самара', 'Ростов-на-Дону', 'Уфа', 'Красноярск',
+        'Пермь', 'Воронеж', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'
+    ]
+
+    address_regex = re.compile(
+        r'\b('
+        r'респ(ублика)?\.?|обл(асть)?\.?|край|г(ород)?\.?|пос(елок)?\.?|'
+        r'ул(ица)?\.?|ш(оссе)?\.?|просп(ект)?\.?|пл(ощадь)?\.?|'
+        r'пер(еулок)?\.?|б(ульвар)?\.?|д(ом)?\.?|'
+        r'кв(артира)?\.?|корп(ус)?\.?|оф(ис)?\.?|'
+        r'мкр(орайон)?\.?|с(ело)?\.?|'
+        r'ст(анция)?\.?|пр(омзона)?\.?|про(изводственная зона)?\.?|'
+        r'(?P<big_city>' + '|'.join(big_cities) + ')\s*,?\s*'
+        r')\b'
+        r'[\w\s\-.,]*'
+        r'(\d+[^\s]*\s*[-/]?\s*\d*[\w\-]*)*',
+        re.IGNORECASE
+    )
+    
+    matches = address_regex.finditer(text)
+    
+    address_indices = [(match.start(), match.end()) for match in matches if len(match.group().split()) > 1]
+
+    return address_indices

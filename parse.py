@@ -158,3 +158,40 @@ def get_bd_positions(text) -> list[tuple[int, int]]:
         # append positions of group 1
         bd_positions.append((match.start(1), match.end(1) - 1))
     return bd_positions
+def extract_complex_address_indices(text):
+    big_cities = [
+        'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Нижний Новгород',
+        'Казань', 'Челябинск', 'Омск', 'Самара', 'Ростов-на-Дону', 'Уфа', 'Красноярск',
+        'Пермь', 'Воронеж', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'
+    ]
+
+    address_regex = re.compile(
+        r'\b('
+        r'респ(ублика)?\.?|обл(асть)?\.?|край|г(ород)?\.?|пос(елок)?\.?|'
+        r'ул(ица)?\.?|ш(оссе)?\.?|просп(ект)?\.?|пл(ощадь)?\.?|'
+        r'пер(еулок)?\.?|б(ульвар)?\.?|д(ом)?\.?|'
+        r'кв(артира)?\.?|корп(ус)?\.?|оф(ис)?\.?|'
+        r'мкр(орайон)?\.?|с(ело)?\.?|'
+        r'ст(анция)?\.?|пр(омзона)?\.?|про(изводственная зона)?\.?|'
+        r'(?P<big_city>' + '|'.join(big_cities) + ')\s*,?\s*'
+        r')\b'
+        r'[\w\s\-.,]*'
+        r'(\d+[^\s]*\s*[-/]?\s*\d*[\w\-]*)*',
+        re.IGNORECASE
+    )
+    
+    matches = address_regex.finditer(text)
+    
+    address_indices = [(match.start(), match.end()) for match in matches if len(match.group().split()) > 1]
+
+    return address_indices
+
+def find_16_digit_numbers(text):
+    number_regex = re.compile(
+        r'\b(?:\d\s*){16}\b'
+    )
+    
+    matches = number_regex.finditer(text)
+    
+    number_indices = [(match.start(), match.end()) for match in matches]
+    return number_indices

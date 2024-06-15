@@ -5,6 +5,7 @@ from read import *
 image_path = "./data_examples/мивапрорп.png"
 image_path = "data_examples/20211119_150847.jpg.2a7914890644c5a31427fd321e1dac2e.jpg"
 # image_path = "data_examples/pushkin.jpg"
+image_path = "data_examples/Есть данные 3.jpg"
 output_path = "./data_examples/output.png"
 
 full_text, coordinates = get_image_data(image_path)

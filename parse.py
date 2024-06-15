@@ -138,3 +138,20 @@ def find_addresses_algo(text):
         addresses.append((current_address.strip(), start_index, end_index))
 
     return [(start, end) for _, start, end in addresses]
+
+
+def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
+    matches = re.findall(r"[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]", text)
+    positions = []
+    for match in matches:
+        start = text.find(match)
+        end = start + len(match) - 1
+        positions.append((start, end))
+    return positions
+
+
+def get_bd_positions(text) -> list[tuple[int, int]]:
+    bd_positions = []
+    for match in re.finditer(r"\d{2}\.\d{2}\.\d{4}", text):
+        bd_positions.append((match.start(), match.end()))
+    return bd_positions

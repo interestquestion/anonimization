@@ -90,7 +90,7 @@ import easyocr
 from PIL import Image
 reader = easyocr.Reader(['ru'])
 
-def get_image_data(image_path, max_size=(800, 800)):
+def get_image_data(image_path):
     # Загрузка изображения с использованием Pillow
     try:
         image = Image.open(image_path)

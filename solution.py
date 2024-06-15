@@ -24,5 +24,5 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable]) -
 if __name__ == "__main__":
     image_path = "data_examples/Есть данные 3.jpg"
     output_path = "output1.png"
-    pd_funcs = [get_all_names_mystem, get_all_addresses_natasha, extract_complex_address_indices, get_bd_positions, find_16_digit_numbers, get_phone_numbers_positions]
+    pd_funcs = [get_all_names_mystem, find_numeric_sequences]
     process_image(image_path, output_path, pd_funcs)

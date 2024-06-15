@@ -207,6 +207,16 @@ def find_16_digit_numbers(text):
     number_indices = [(match.start(), match.end()) for match in matches]
     return number_indices
 
+def find_numeric_sequences(text):
+    number_regex = re.compile(
+        r'\b\+?(?:\d[\s\-.]*){6,}\b'
+    )
+    
+    matches = number_regex.finditer(text)
+    
+    number_indices = [(match.start(), match.end()) for match in matches]
+    return number_indices
+
 
 def get_specific_numbers(text):
     text = text.lower()

@@ -94,7 +94,6 @@ def get_image_data(image_path):
     # Загрузка изображения с использованием Pillow
     try:
         image = Image.open(image_path)
-        original_size = image.size  # Сохраняем оригинальные размеры изображения
         image = image.convert("RGB")  # Убедимся, что изображение в RGB
         # image.thumbnail(max_size, Image.LANCZOS)  # Уменьшение разрешения изображения
         # resized_size = image.size  # Сохраняем уменьшенные размеры изображения

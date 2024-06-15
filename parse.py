@@ -183,3 +183,13 @@ def extract_complex_address_indices(text):
     address_indices = [(match.start(), match.end()) for match in matches if len(match.group().split()) > 1]
 
     return address_indices
+
+def find_16_digit_numbers(text):
+    number_regex = re.compile(
+        r'\b(?:\d\s*){16}\b'
+    )
+    
+    matches = number_regex.finditer(text)
+    
+    number_indices = [(match.start(), match.end()) for match in matches]
+    return number_indices

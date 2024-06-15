@@ -1,3 +1,4 @@
+import itertools
 import logging
 
 import spacy
@@ -69,7 +70,6 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
             analysis = word["analysis"][0]
         except (KeyError, IndexError):
             continue
-        print(word)
         index = text.find(word["text"], last_index)
 
         if 'фам' in analysis['gr']:
@@ -80,7 +80,7 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
             previous_word_tags.append("отч")
         else:
             previous_word_tags.append("")
-        previous_word_positions.append((index, index + len(word["text"])))
+        previous_word_positions.append((index, index + len(word["text"]) - 1))
 
         if previous_word_tags[-3:] in [["фам", "имя", "отч"], ["имя", "отч", "фам"]]:
             names_positions += previous_word_positions[-3:]
@@ -141,23 +141,34 @@ def find_addresses_algo(text):
 
 
 def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
-    matches = re.findall(r"[\+\(]?[1-9][0-9 .\-\(\)]{8,}[0-9]", text)
+    matches = re.finditer(r"(\+?[78][\s-]{,3})?(\(\d{1,4}\)[\s-]{,3})?" 
+                          r"\d[\d\s-]{5,14}\d", text)
     positions = []
     for match in matches:
-        start = text.find(match)
-        end = start + len(match) - 1
+        match_text = re.sub(r'[\(\)\s+-]', '', match.group())
+        if len(match_text) < 7:
+            continue
+        start = match.start()
+        end = match.end() - 1
         positions.append((start, end))
+        print(match)
     return positions
 
 
 def get_bd_positions(text) -> list[tuple[int, int]]:
     bd_positions = []
-    regex = r'рождения[\s:-]*([\d.\s-]{5,12})'
-    matches = re.finditer(regex, text.lower())
+    regex = r'рождения[\s:-]*([\d.\s-]{4,14}\d)'
+    regex_dates = r'(\d{2}[./-]\s*\d{2}[./-]\s*\d{2,4})'
+    matches = itertools.chain(re.finditer(regex, text), re.finditer(regex_dates, text))
     for match in matches:
-        # append positions of group 1
+        # if date is recent, it is not a birth date
+        day, month, year = re.split(r'[./\s-]+', match.group(1))
+        year = int(year)
+        if year > 2020 or year / 100 < 1 and year > 20:
+            continue
         bd_positions.append((match.start(1), match.end(1) - 1))
     return bd_positions
+
 def extract_complex_address_indices(text):
     big_cities = [
         'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Нижний Новгород',
@@ -195,3 +206,15 @@ def find_16_digit_numbers(text):
     
     number_indices = [(match.start(), match.end()) for match in matches]
     return number_indices
+
+
+def get_specific_numbers(text):
+    text = text.lower()
+    number = r'(?:\d[\s-]*){4,16}'
+    words = r'\b(?:снилс|инн|паспорта?|паспортные данные|полиса?|омс|тел\.?(?:ефона?)?|№|карты|[ин]\s*/\s*б|номер)'
+    regex = f'{words}[\s:-]*({number})'
+    matches = re.finditer(regex, text)
+    positions = []
+    for match in matches:
+        positions.append((match.start(1), match.end(1) - 1))
+    return positions

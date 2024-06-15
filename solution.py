@@ -2,8 +2,10 @@ from typing import Callable
 from read import *
 from parse import *
 
-PATH_TO_TESSARECT = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
-pytesseract.pytesseract.tesseract_cmd = PATH_TO_TESSARECT
+# if windows
+if os.name == "nt":
+    PATH_TO_TESSARECT = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    pytesseract.pytesseract.tesseract_cmd = PATH_TO_TESSARECT
 
 
 def process_image(image_path: str, output_path: str, pd_funcs: list[Callable]) -> None:

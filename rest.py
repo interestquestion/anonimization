@@ -22,9 +22,10 @@ async def read_root():
 async def upload(file: UploadFile = File(...)) -> Response:
     pd_funcs = [
         get_all_names_mystem,
-        get_all_addresses_natasha,
+        # get_all_addresses_natasha,
         get_phone_numbers_positions,
         get_bd_positions,
+        get_specific_numbers,
     ]
 
     input_filename = file.filename
@@ -52,7 +53,7 @@ async def upload(file: UploadFile = File(...)) -> Response:
         tmp_output_dir.cleanup()
     elif input_filename.endswith((".png", ".jpg", ".jpeg")):
         process_image(
-            input_filename,
+            tmp_input_file.name,
             output_file.name,
             pd_funcs,
         )
@@ -65,6 +66,8 @@ async def upload(file: UploadFile = File(...)) -> Response:
     output_content = output_file.read()
     output_file.close()
     os.unlink(output_file.name)
+    tmp_input_file.close()
+    os.unlink(tmp_input_file.name)
 
     return Response(
         content=output_content,

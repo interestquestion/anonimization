@@ -1,18 +1,13 @@
-import logging
 import os
-import tempfile
 
 import cv2
 import easyocr
 import img2pdf
 import numpy as np
-import pyocr
 import pytesseract
 from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw
 from pytesseract import Output
-
-log = logging.getLogger(__name__)
 
 reader = easyocr.Reader(["ru"])
 
@@ -59,7 +54,6 @@ def get_image_data_tesseract(image_path):
                 "height": data["height"][i] / resize_factor,
             }
             coordinates.append(char_info)
-    print(full_text)
     return full_text, coordinates
 
 
@@ -108,14 +102,11 @@ def get_image_data_easyocr(image_path):
         full_text = full_text[:-1]
         coordinates = coordinates[:-1]
 
-    print(full_text)
-
     return full_text, coordinates
 
 
 def get_bounding_rectangles(i, j, full_text, coordinates):
     if i < 0 or j >= len(full_text) or i > j:
-        log.error(f"Invalid indices: {i=}, {j=}, {len(full_text)=}")
         return []
 
     selected_coords = [

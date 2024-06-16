@@ -62,7 +62,6 @@ def get_all_addresses_natasha(text) -> list[tuple[int, int]]:
     doc.tag_ner(natasha_ner_tagger)
 
     logging.info(doc.spans)
-    doc.ner.print()
 
     addresses_positions = []
     for span in doc.spans:
@@ -300,7 +299,6 @@ def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
         start = match.start()
         end = match.end() - 1
         positions.append((start, end))
-        print(match)
     return positions
 
 
@@ -325,7 +323,6 @@ def get_bd_positions(text, date_year_max: int = 2016) -> list[tuple[int, int]]:
                 continue
             bd_positions.append((match.start(1), match.end(1) - 1))
         except Exception as e:
-            print(e)
             continue
     return bd_positions
 

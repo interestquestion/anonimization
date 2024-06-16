@@ -7,6 +7,7 @@ RUN apt-get update && \
     tesseract-ocr \
     tesseract-ocr-rus \
     python3-opencv \
+    poppler-utils \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

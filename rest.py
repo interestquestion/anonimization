@@ -46,54 +46,75 @@ async def upload(
         else get_image_data_easyocr
     )
 
-    input_filename = file.filename
-    input_filename_ext = input_filename.split(".")[-1]
-    tmp_input_file = tempfile.NamedTemporaryFile(
-        delete=False, dir=".", suffix=f".{input_filename_ext}"
-    )
-    tmp_input_file.write(await file.read())
-    output_file = tempfile.NamedTemporaryFile(
-        delete=False, dir=".", suffix=f".{input_filename_ext}"
-    )
+    try:
+        input_filename = file.filename
+        input_filename_ext = input_filename.split(".")[-1]
+        tmp_input_file = tempfile.NamedTemporaryFile(
+            delete=False, dir=".", suffix=f".{input_filename_ext}"
+        )
+        tmp_input_file.write(await file.read())
+        output_file = tempfile.NamedTemporaryFile(
+            delete=False, dir=".", suffix=f".{input_filename_ext}"
+        )
 
-    if input_filename.endswith(".pdf"):
-        tmp_dir = tempfile.TemporaryDirectory()
-        tmp_output_dir = tempfile.TemporaryDirectory()
-        pdf_to_images(tmp_input_file.name, tmp_dir.name)
-        for img in os.listdir(tmp_dir.name):
+        if input_filename.endswith(".pdf"):
+            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_output_dir = tempfile.TemporaryDirectory()
+            pdf_to_images(tmp_input_file.name, tmp_dir.name)
+            for img in os.listdir(tmp_dir.name):
+                process_image(
+                    f"{tmp_dir.name}/{img}",
+                    f"{tmp_output_dir.name}/{img}",
+                    pd_funcs,
+                    get_image_data,
+                )
+            images_to_pdf(tmp_output_dir.name, output_file.name)
+            tmp_dir.cleanup()
+            tmp_output_dir.cleanup()
+        elif input_filename.endswith((".png", ".jpg", ".jpeg")):
             process_image(
-                f"{tmp_dir.name}/{img}",
-                f"{tmp_output_dir.name}/{img}",
+                tmp_input_file.name,
+                output_file.name,
                 pd_funcs,
                 get_image_data,
             )
-        images_to_pdf(tmp_output_dir.name, output_file.name)
-        tmp_dir.cleanup()
-        tmp_output_dir.cleanup()
-    elif input_filename.endswith((".png", ".jpg", ".jpeg")):
-        process_image(
-            tmp_input_file.name,
-            output_file.name,
-            pd_funcs,
-            get_image_data,
-        )
-    else:
+        else:
+            try:
+                output_file.close()
+                os.unlink(output_file.name)
+                tmp_input_file.close()
+                os.unlink(tmp_input_file.name)
+            except:
+                pass
+            return Response(
+                content="Unsupported file format. Please upload a .pdf, .png, .jpg, or .jpeg file.",
+                status_code=415,
+            )
+
+        output_content = output_file.read()
+        output_file.close()
+        os.unlink(output_file.name)
+        tmp_input_file.close()
+        os.unlink(tmp_input_file.name)
+
         return Response(
-            content="Unsupported file format. Please upload a .pdf, .png, .jpg, or .jpeg file.",
-            status_code=415,
+            content=output_content,
+            media_type=(
+                "image/png"
+                if input_filename.endswith((".png", ".jpg", ".jpeg"))
+                else "application/pdf"
+            ),
         )
-
-    output_content = output_file.read()
-    output_file.close()
-    os.unlink(output_file.name)
-    tmp_input_file.close()
-    os.unlink(tmp_input_file.name)
-
-    return Response(
-        content=output_content,
-        media_type=(
-            "image/png"
-            if input_filename.endswith((".png", ".jpg", ".jpeg"))
-            else "application/pdf"
-        ),
-    )
+    except Exception as e:
+        print(e)
+        try:
+            output_file.close()
+            os.unlink(output_file.name)
+            tmp_input_file.close()
+            os.unlink(tmp_input_file.name)
+        except:
+            pass
+        return Response(
+            content="Error while processing the file.",
+            status_code=500,
+        )

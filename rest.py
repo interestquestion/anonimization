@@ -104,6 +104,11 @@ async def upload(
                 if input_filename.endswith((".png", ".jpg", ".jpeg"))
                 else "application/pdf"
             ),
+            headers=(
+                {"Content-Disposition": 'attachment; filename="out.pdf"'}
+                if input_filename.endswith(".pdf")
+                else None
+            ),
         )
     except Exception as e:
         print(e)

@@ -22,10 +22,11 @@ async def read_root():
 async def upload(file: UploadFile = File(...)) -> Response:
     pd_funcs = [
         get_all_names_mystem,
-        # get_all_addresses_natasha,
+        extract_complex_address_indices,
         get_phone_numbers_positions,
         get_bd_positions,
         get_specific_numbers,
+        find_numeric_sequences,
     ]
 
     input_filename = file.filename

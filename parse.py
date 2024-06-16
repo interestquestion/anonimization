@@ -1,6 +1,8 @@
 import itertools
 import logging
+import re
 
+from address import CITIES, REGIONS
 import spacy
 
 SPACY_MODEL_LG = spacy.load("ru_core_news_lg")
@@ -34,7 +36,15 @@ def get_all_addresses_spacy(text) -> list[tuple[int, int]]:
 
 
 def get_all_addresses_natasha(text) -> list[tuple[int, int]]:
-    from natasha import Segmenter, MorphVocab, NewsEmbedding, NewsMorphTagger, NewsSyntaxParser, NewsNERTagger, Doc
+    from natasha import (
+        Segmenter,
+        MorphVocab,
+        NewsEmbedding,
+        NewsMorphTagger,
+        NewsSyntaxParser,
+        NewsNERTagger,
+        Doc,
+    )
 
     natasha_segmenter = Segmenter()
     natasha_morph_vocab = MorphVocab()
@@ -58,6 +68,7 @@ def get_all_addresses_natasha(text) -> list[tuple[int, int]]:
             addresses_positions.append((span.start, span.stop))
     return addresses_positions
 
+
 def get_all_names_mystem(text) -> list[tuple[int, int]]:
     analyze = MYSTEM.analyze(text)
     names_positions = []
@@ -71,18 +82,20 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
         except (KeyError, IndexError):
             continue
         index = text.find(word["text"], last_index)
-
-        if 'фам' in analysis['gr']:
+        if "фам" in analysis["gr"]:
             previous_word_tags.append("фам")
-        elif 'имя' in analysis['gr']:
+        elif "имя" in analysis["gr"]:
             previous_word_tags.append("имя")
-        elif 'отч' in analysis['gr']:
+        elif "отч" in analysis["gr"]:
             previous_word_tags.append("отч")
+        # if word is one letter, save the tag letter
+        elif len(word["text"].strip('.')) == 1:
+            previous_word_tags.append("letter")
         else:
             previous_word_tags.append("")
-        previous_word_positions.append((index, index + len(word["text"]) - 1))
+        previous_word_positions.append((index, index + len(word["text"]) - 2))
 
-        if previous_word_tags[-3:] in [["фам", "имя", "отч"], ["имя", "отч", "фам"]]:
+        if previous_word_tags[-3:] in [["фам", "имя", "отч"], ["имя", "отч", "фам"], ["фам", "letter", "letter"]]:
             names_positions += previous_word_positions[-3:]
         elif previous_word_tags[-2:] in [["фам", "имя"], ["имя", "фам"]]:
             names_positions += previous_word_positions[-2:]
@@ -91,20 +104,148 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
     return names_positions
 
 
-import re
-
 def get_address_indices_algo(text):
     address_levels = [
-        ["респ\.","республика","край","область","обл\.","г\.ф\.з\.","а\.окр\."],
-        ["пос\.","поселение","р-н","район","с\/с","сельсовет"],
-        ["г\.","город","пгт\.","рп\.","кп\.","гп\.","п\.","поселок","аал","арбан","аул","в-ки","выселки","г-к","заимка","з-ка","починок","п-к","киш\.","кишлак","п\.ст\.","ж\/д","м-ко","местечко","деревня","с\.","село","сл\.","ст\.","станция","ст-ца","станица","у\.","улус","х\.","хутор","рзд\.","разъезд","зим\.","зимовье","д\."],
-        ["ал\.","аллея","б-р","бульвар","взв\.","взд\.","въезд","дор\.","дорога","ззд\.","заезд","километр","к-цо","кольцо","лн\.","линия","мгстр\.","магистраль","наб\.","набережная","пер-д","переезд","пер\.","переулок","пл-ка","площадка","пл\.","площадь","пр-кт\.","проспект","проул\.","проулок","рзд\.","разъезд","ряд","с-р","сквер","с-к","спуск","сзд\.","съезд","тракт","туп\.","тупик","ул\.","улица","ш\.","шоссе"],
-        ["влд\.","владение","г-ж","гараж","д\.","дом","двлд\.","домовладение","зд\.","здание","з\/у","участок","кв\.","квартира","ком\.","комната","подв\.","подвал","кот\.","котельная","п-б","погреб","к\.","корпус","офис","пав\.","павильон","помещ\.","помещение","раб\.уч\.","скл\.","склад","соор\.","сооружение","стр\.","строение","торг\.зал\.","цех"]
+        ["респ\.", "республика", "край", "область", "обл\.", "г\.ф\.з\.", "а\.окр\."],
+        ["пос\.", "поселение", "р-н", "район", "с\/с", "сельсовет"],
+        [
+            "г\.",
+            "город",
+            "пгт\.",
+            "рп\.",
+            "кп\.",
+            "гп\.",
+            "п\.",
+            "поселок",
+            "аал",
+            "арбан",
+            "аул",
+            "в-ки",
+            "выселки",
+            "г-к",
+            "заимка",
+            "з-ка",
+            "починок",
+            "п-к",
+            "киш\.",
+            "кишлак",
+            "п\.ст\.",
+            "ж\/д",
+            "м-ко",
+            "местечко",
+            "деревня",
+            "с\.",
+            "село",
+            "сл\.",
+            "ст\.",
+            "станция",
+            "ст-ца",
+            "станица",
+            "у\.",
+            "улус",
+            "х\.",
+            "хутор",
+            "рзд\.",
+            "разъезд",
+            "зим\.",
+            "зимовье",
+            "д\.",
+        ],
+        [
+            "ал\.",
+            "аллея",
+            "б-р",
+            "бульвар",
+            "взв\.",
+            "взд\.",
+            "въезд",
+            "дор\.",
+            "дорога",
+            "ззд\.",
+            "заезд",
+            "километр",
+            "к-цо",
+            "кольцо",
+            "лн\.",
+            "линия",
+            "мгстр\.",
+            "магистраль",
+            "наб\.",
+            "набережная",
+            "пер-д",
+            "переезд",
+            "пер\.",
+            "переулок",
+            "пл-ка",
+            "площадка",
+            "пл\.",
+            "площадь",
+            "пр-кт\.",
+            "проспект",
+            "проул\.",
+            "проулок",
+            "рзд\.",
+            "разъезд",
+            "ряд",
+            "с-р",
+            "сквер",
+            "с-к",
+            "спуск",
+            "сзд\.",
+            "съезд",
+            "тракт",
+            "туп\.",
+            "тупик",
+            "ул\.",
+            "улица",
+            "ш\.",
+            "шоссе",
+        ],
+        [
+            "влд\.",
+            "владение",
+            "г-ж",
+            "гараж",
+            "д\.",
+            "дом",
+            "двлд\.",
+            "домовладение",
+            "зд\.",
+            "здание",
+            "з\/у",
+            "участок",
+            "кв\.",
+            "квартира",
+            "ком\.",
+            "комната",
+            "подв\.",
+            "подвал",
+            "кот\.",
+            "котельная",
+            "п-б",
+            "погреб",
+            "к\.",
+            "корпус",
+            "офис",
+            "пав\.",
+            "павильон",
+            "помещ\.",
+            "помещение",
+            "раб\.уч\.",
+            "скл\.",
+            "склад",
+            "соор\.",
+            "сооружение",
+            "стр\.",
+            "строение",
+            "торг\.зал\.",
+            "цех",
+        ],
     ]
 
     address_regex = re.compile(
-        r'(' + '|'.join([r'|'.join(level) for level in address_levels]) + r')',
-        re.IGNORECASE
+        r"(" + "|".join([r"|".join(level) for level in address_levels]) + r")",
+        re.IGNORECASE,
     )
 
     matches = []
@@ -112,6 +253,7 @@ def get_address_indices_algo(text):
         matches.append((match.start(), match.end()))
 
     return matches
+
 
 def find_addresses_algo(text):
     indices = get_address_indices_algo(text)
@@ -128,7 +270,7 @@ def find_addresses_algo(text):
         current_address += part + " "
         end_index = end
 
-        if re.search(r'[,.!?;]', text[end:]):
+        if re.search(r"[,.!?;]", text[end:]):
             addresses.append((current_address.strip(), start_index, end_index))
             current_address = ""
             start_index = -1
@@ -141,11 +283,12 @@ def find_addresses_algo(text):
 
 
 def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
-    matches = re.finditer(r"(\+?[78][\s-]{,3})?(\(\d{1,4}\)[\s-]{,3})?" 
-                          r"\d[\d\s-]{5,14}\d", text)
+    matches = re.finditer(
+        r"(\+?[78][\s-]{,3})?(\(\d{1,4}\)[\s-]{,3})?" r"\d[\d\s-]{5,14}\d", text
+    )
     positions = []
     for match in matches:
-        match_text = re.sub(r'[\(\)\s+-]', '', match.group())
+        match_text = re.sub(r"[\(\)\s+-]", "", match.group())
         if len(match_text) < 7:
             continue
         start = match.start()
@@ -157,74 +300,113 @@ def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
 
 def get_bd_positions(text) -> list[tuple[int, int]]:
     bd_positions = []
-    regex = r'рождения[\s:-]*([\d.\s-]{4,14}\d)'
-    regex_dates = r'(\d{2}[./-]\s*\d{2}[./-]\s*\d{2,4})'
+    regex = r"рожде[ни]{2}.[\s:-]*([\d.,\s-]{4,14}\d)"
+    regex_dates = r"(\d{2}[.,/-]\s*\d{2}[.,/-]\s*\d{2,4})"
     matches = itertools.chain(re.finditer(regex, text), re.finditer(regex_dates, text))
     for match in matches:
         # if date is recent, it is not a birth date
-        day, month, year = re.split(r'[./\s-]+', match.group(1))
+        day, month, year = re.split(r"[./\s-]+", match.group(1))
         year = int(year)
         if year > 2020 or year / 100 < 1 and year > 20:
             continue
         bd_positions.append((match.start(1), match.end(1) - 1))
     return bd_positions
 
+
 def extract_complex_address_indices(text):
-    big_cities = [
-        'Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Нижний Новгород',
-        'Казань', 'Челябинск', 'Омск', 'Самара', 'Ростов-на-Дону', 'Уфа', 'Красноярск',
-        'Пермь', 'Воронеж', 'Волгоград', 'Краснодар', 'Саратов', 'Тюмень', 'Тольятти', 'Ижевск'
+    regions = [region.lower() for region in CITIES + REGIONS]
+
+    # Define the abbreviations and full words in a dictionary
+    terms_word = {
+        "респ": "ублика",
+        "кр": "ай",
+        "автономная обл": "асть",
+        "автономный округ": "",
+        "обл": "асть",
+        "г": "ород",
+        "пос": "елок",
+        "ул": "ица",
+        "ш": "оссе",
+        "просп": "ект",
+        "пл": "ощадь",
+        "пер": "еулок",
+        "б": "ульвар",
+        "мкр": "орайон",
+        "село": "",
+        "ст": "анция",
+        "пр": "омзона",
+        "производственная зона": "",
+    }
+    terms_num = {
+        "д": "ом",
+        "кв": "артира",
+        "корп": "ус",
+        "оф": "ис",
+        "пом": "ещение",
+    }
+
+    # Generate the regular expression pattern
+    patterns_num = [
+        rf"\b({abbrev}({full_word})?[\s.,])[\s\d-]+"
+        for abbrev, full_word in terms_num.items()
     ]
-
-    address_regex = re.compile(
-        r'\b('
-        r'респ(ублика)?\.?|обл(асть)?\.?|край|г(ород)?\.?|пос(елок)?\.?|'
-        r'ул(ица)?\.?|ш(оссе)?\.?|просп(ект)?\.?|пл(ощадь)?\.?|'
-        r'пер(еулок)?\.?|б(ульвар)?\.?|д(ом)?\.?|'
-        r'кв(артира)?\.?|корп(ус)?\.?|оф(ис)?\.?|'
-        r'мкр(орайон)?\.?|с(ело)?\.?|'
-        r'ст(анция)?\.?|пр(омзона)?\.?|про(изводственная зона)?\.?|'
-        r'(?P<big_city>' + '|'.join(big_cities) + ')\s*,?\s*'
-        r')\b'
-        r'[\w\s\-.,]*'
-        r'(\d+[^\s]*\s*[-/]?\s*\d*[\w\-]*)*',
-        re.IGNORECASE
+    patterns_words = rf'(?P<big_city>{"|".join(regions)})'
+    patterns_words += "|".join(
+        [rf"\b({abbrev}({full_word})?[\s.,])\s*[а-яё-]+"
+          for abbrev, full_word in terms_word.items()]
     )
-    
-    matches = address_regex.finditer(text)
-    
-    address_indices = [(match.start(), match.end()) for match in matches if len(match.group().split()) > 1]
+    patterns = [patterns_words] + patterns_num
+    pattern = "|".join(patterns)
 
-    return address_indices
+    # Compile the regular expression
+    address_regex = re.compile(pattern, re.IGNORECASE)
+
+    matches = address_regex.finditer(text)
+
+    address_indices = [(match.start(), match.end() - 1) for match in matches]
+    # if there is just one match, return []
+    if len(address_indices) == 1:
+        return []
+    # merge indices if they are close, remove lone indices if they form a group of size 1 (keep current number of elements in group)
+    merged_indices = []
+    cur_count = 1
+    for i in range(1, len(address_indices)):
+        if address_indices[i][0] - address_indices[i - 1][1] < 10:
+            cur_count += 1
+        else:
+            if cur_count > 1:
+                merged_indices.append((address_indices[i - cur_count][0], address_indices[i - 1][1]))
+            cur_count = 1
+    if cur_count > 1:
+        merged_indices.append((address_indices[-cur_count][0], address_indices[-1][1]))
+    return merged_indices
+
 
 def find_16_digit_numbers(text):
-    number_regex = re.compile(
-        r'\b(?:\d\s*){16}\b'
-    )
-    
+    number_regex = re.compile(r"\b(?:\d\s*){16}\b")
+
     matches = number_regex.finditer(text)
-    
+
     number_indices = [(match.start(), match.end()) for match in matches]
     return number_indices
 
+
 def find_numeric_sequences(text):
-    number_regex = re.compile(
-        r'\b\+?(?:\d[\s\-.]*){6,}\b'
-    )
-    
+    number_regex = re.compile(r"\b\+?(?:\d[\s\-]*){8,}\b")
+
     matches = number_regex.finditer(text)
-    
-    number_indices = [(match.start(), match.end()) for match in matches]
+
+    number_indices = [(match.start(), match.end() - 3) for match in matches]
     return number_indices
 
 
 def get_specific_numbers(text):
     text = text.lower()
-    number = r'(?:\d[\s-]*){4,16}'
-    words = r'\b(?:снилс|инн|паспорта?|паспортные данные|полиса?|омс|тел\.?(?:ефона?)?|№|карты|[ин]\s*/\s*б|номер)'
-    regex = f'{words}[\s:-]*({number})'
+    number = r"(?:\d[\s-]*){4,16}"
+    words = r"\b(?:снилс|инн|паспорта?|паспортные данные|полиса?|омс|тел\.?(?:ефона?)?|№|карты|[ин]\s*/\s*б|номер)"
+    regex = f"{words}[\s:-]*({number})"
     matches = re.finditer(regex, text)
     positions = []
     for match in matches:
-        positions.append((match.start(1), match.end(1) - 1))
+        positions.append((match.start(1), match.end(1) - 3))
     return positions

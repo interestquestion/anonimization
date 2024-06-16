@@ -29,8 +29,9 @@ curl -X 'POST' \
 
 Для того, чтобы пользоваться данным продуктом, необходимо иметь
  * Python, мы рекоммендуем использовать версию 3.10 для полной совместимости. Также нужно иметь установленный pip.
- * Для работы с основным модулем OCR требуется иметь работающий Tesseract. Для Windows его можно скачать здесь: https://github.com/UB-Mannheim/tesseract/wiki. Для Mac достаточно выполнить в терминале команды ```brew install tesseract``` и ```brew install tesseract-lang``` (установка brew описана на сайте: https://brew.sh/). В Linux Tesseract устанавливается командой ```sudo apt-get update && sudo apt-get install tesseract-ocr tesseract-ocr-rus```.
- * Также необходим пакет OpenCV. На Linux его можно установить командой ```sudo apt-get install python3-opencv```.
+ * Для работы с основным модулем OCR требуется иметь работающий Tesseract. Для Windows его можно скачать здесь: https://github.com/UB-Mannheim/tesseract/wiki. Для Mac достаточно выполнить в терминале команды ```brew install tesseract``` и ```brew install tesseract-lang``` (установка brew описана на сайте: https://brew.sh/). В Ubuntu/Debian Tesseract устанавливается командой ```sudo apt-get update && sudo apt-get install tesseract-ocr tesseract-ocr-rus```.
+ * Также необходим пакет OpenCV. На Ubuntu/Debian требуется выполнить команду ```sudo apt-get install python3-opencv```.
+ * Для работы с pdf-файлами требуется пакет poppler. На Ubuntu/Debian его можно установить командой ```sudo apt-get install poppler-utils```. На Mac его можно установить с помощью brew: ```brew install poppler```. На Windows нужно скачать установщик с сайта https://github.com/oschwartz10612/poppler-windows/releases/ и добавить путь к папке bin в переменные среды PATH.
  * Требуется установить необходимые библиотеки, это можно сделать, запустив в папке репозитория в терминале команду ```python -m pip install -U -r requirements.txt```.
  * При первом запуске возможны задержки, связанные с автоматической подгрузкой определенных моделей, рекомендуется первый запуск осуществлять с доступом к интернету. При этом после загрузки всех библиотек и моделей решение работает изолированно.
 

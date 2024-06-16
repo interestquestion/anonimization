@@ -1,11 +1,10 @@
 easyocr
 fastapi
+fastapi-cli
 img2pdf
 natasha
-numpy
-opencv_contrib_python
 opencv_python
-opencv_python_headless
+numpy
 pdf2image
 Pillow
 pymystem3

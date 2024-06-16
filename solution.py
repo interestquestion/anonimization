@@ -8,11 +8,14 @@ if os.name == "nt":
     pytesseract.pytesseract.tesseract_cmd = PATH_TO_TESSARECT
 
 
-def process_image(image_path: str, output_path: str, pd_funcs: list[Callable]) -> None:
+def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], get_image_data: Callable) -> None:
     full_text, coordinates = get_image_data(image_path)
     positions = []
     for pd_func in pd_funcs:
-        positions.extend(pd_func(full_text))
+        try:
+            positions.extend(pd_func(full_text))
+        except Exception as e:
+            print(f"Error in {pd_func.__name__}: {e}")
     
     rectangles = []
     for i, j in positions:

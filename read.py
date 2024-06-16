@@ -1,16 +1,20 @@
+import logging
 import os
 import tempfile
 
-import img2pdf
-import pyocr
 import cv2
+import easyocr
+import img2pdf
 import numpy as np
+import pyocr
 import pytesseract
 from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw
 from pytesseract import Output
-import numpy as np
 
+log = logging.getLogger(__name__)
+
+reader = easyocr.Reader(["ru"])
 
 TARGET_HEIGHT = 2048
 RESIZE_FACTOR = 1
@@ -31,18 +35,10 @@ def resize_image_to_height(
     return resized_image, resize_factor
 
 
-def get_image_data(image_path):
+def get_image_data_tesseract(image_path):
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image, resize_factor = resize_image_to_height(image)
-
-    # image = cv2.GaussianBlur(image, (9, 9), 0)
-    # kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
-    # image = cv2.filter2D(image, -1, kernel)
-    # image = cv2.threshold(image, 135, 255, cv2.THRESH_BINARY)[1]
-    # image = cv2.inRange(image, (0, 0, 123), (179, 255, 255))
-    # save_image
-    cv2.imwrite("output.png", image)
 
     data = pytesseract.image_to_data(image, lang="rus", output_type=Output.DICT)
 
@@ -67,13 +63,7 @@ def get_image_data(image_path):
     return full_text, coordinates
 
 
-import easyocr
-from PIL import Image
-
-reader = easyocr.Reader(["ru"])
-
-
-def get_image_data(image_path):
+def get_image_data_easyocr(image_path):
     # Загрузка изображения с использованием Pillow
     try:
         image = cv2.imread(image_path)
@@ -125,7 +115,8 @@ def get_image_data(image_path):
 
 def get_bounding_rectangles(i, j, full_text, coordinates):
     if i < 0 or j >= len(full_text) or i > j:
-        raise ValueError(f"Invalid indices: {i=}, {j=}, {len(full_text)=}")
+        log.error(f"Invalid indices: {i=}, {j=}, {len(full_text)=}")
+        return []
 
     selected_coords = [
         coord for k, coord in enumerate(coordinates[i : j + 1]) if coord is not None

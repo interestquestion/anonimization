@@ -2,48 +2,50 @@ import itertools
 import logging
 import re
 
-from address import CITIES, REGIONS
-import spacy
-
-SPACY_MODEL_LG = spacy.load("ru_core_news_lg")
 from pymystem3 import Mystem
+
+from address import CITIES, REGIONS
+
+# import spacy
+
+# SPACY_MODEL_LG = spacy.load("ru_core_news_lg")
 
 MYSTEM = Mystem()
 
 
-def get_all_names_spacy(text) -> list[tuple[int, int]]:
-    doc = SPACY_MODEL_LG(text)
-    names_positions = []
-    for token in doc:
-        print(
-            f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
-        )
-        if token.ent_type_ == "PER":
-            names_positions.append((token.idx, token.idx + len(token.text) - 1))
-    return names_positions
+# def get_all_names_spacy(text) -> list[tuple[int, int]]:
+#     doc = SPACY_MODEL_LG(text)
+#     names_positions = []
+#     for token in doc:
+#         print(
+#             f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
+#         )
+#         if token.ent_type_ == "PER":
+#             names_positions.append((token.idx, token.idx + len(token.text) - 1))
+#     return names_positions
 
 
-def get_all_addresses_spacy(text) -> list[tuple[int, int]]:
-    doc = SPACY_MODEL_LG(text)
-    addresses_positions = []
-    for token in doc:
-        print(
-            f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
-        )
-        if token.ent_type_ == "LOC":
-            addresses_positions.append((token.idx, token.idx + len(token.text) - 1))
-    return addresses_positions
+# def get_all_addresses_spacy(text) -> list[tuple[int, int]]:
+#     doc = SPACY_MODEL_LG(text)
+#     addresses_positions = []
+#     for token in doc:
+#         print(
+#             f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
+#         )
+#         if token.ent_type_ == "LOC":
+#             addresses_positions.append((token.idx, token.idx + len(token.text) - 1))
+#     return addresses_positions
 
 
 def get_all_addresses_natasha(text) -> list[tuple[int, int]]:
     from natasha import (
-        Segmenter,
+        Doc,
         MorphVocab,
         NewsEmbedding,
         NewsMorphTagger,
-        NewsSyntaxParser,
         NewsNERTagger,
-        Doc,
+        NewsSyntaxParser,
+        Segmenter,
     )
 
     natasha_segmenter = Segmenter()
@@ -89,13 +91,17 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
         elif "отч" in analysis["gr"]:
             previous_word_tags.append("отч")
         # if word is one letter, save the tag letter
-        elif len(word["text"].strip('.')) == 1:
+        elif len(word["text"].strip(".")) == 1:
             previous_word_tags.append("letter")
         else:
             previous_word_tags.append("")
         previous_word_positions.append((index, index + len(word["text"]) - 2))
 
-        if previous_word_tags[-3:] in [["фам", "имя", "отч"], ["имя", "отч", "фам"], ["фам", "letter", "letter"]]:
+        if previous_word_tags[-3:] in [
+            ["фам", "имя", "отч"],
+            ["имя", "отч", "фам"],
+            ["фам", "letter", "letter"],
+        ]:
             names_positions += previous_word_positions[-3:]
         elif previous_word_tags[-2:] in [["фам", "имя"], ["имя", "фам"]]:
             names_positions += previous_word_positions[-2:]
@@ -298,18 +304,29 @@ def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
     return positions
 
 
-def get_bd_positions(text) -> list[tuple[int, int]]:
+def get_bd_positions(text, date_year_max: int = 2016) -> list[tuple[int, int]]:
     bd_positions = []
-    regex = r"рожде[ни]{2}.[\s:-]*([\d.,\s-]{4,14}\d)"
-    regex_dates = r"(\d{2}[.,/-]\s*\d{2}[.,/-]\s*\d{2,4})"
+    text = text.lower()
+    regex = r"(?:рожде[ни]{2}.|\bд.\s*р.)[\s:-]*([\d.,\s-]{4,14}\d)"
+    regex_dates = r"(\d{2}[.,/-]\d{2}[.,/-]\s*\d{2,4})"
     matches = itertools.chain(re.finditer(regex, text), re.finditer(regex_dates, text))
     for match in matches:
         # if date is recent, it is not a birth date
-        day, month, year = re.split(r"[./\s-]+", match.group(1))
-        year = int(year)
-        if year > 2020 or year / 100 < 1 and year > 20:
+        try:
+            try:
+                day, month, year = re.split(r"[./-]\s*", match.group(1))
+                year = year.split()[0]
+            except Exception:
+                match_text = re.sub(r"[^\d]", "", match.group(1))
+                if len(match_text) == 8:
+                    day, month, year = match_text[:2], match_text[2:4], match_text[4:]
+            year = int(year)
+            if year > date_year_max or year / 100 < 1 and year > (date_year_max % 100):
+                continue
+            bd_positions.append((match.start(1), match.end(1) - 1))
+        except Exception as e:
+            print(e)
             continue
-        bd_positions.append((match.start(1), match.end(1) - 1))
     return bd_positions
 
 
@@ -352,8 +369,10 @@ def extract_complex_address_indices(text):
     ]
     patterns_words = rf'(?P<big_city>{"|".join(regions)})'
     patterns_words += "|".join(
-        [rf"\b({abbrev}({full_word})?[\s.,])\s*[а-яё-]+"
-          for abbrev, full_word in terms_word.items()]
+        [
+            rf"\b({abbrev}({full_word})?[\s.,])\s*[а-яё-]+"
+            for abbrev, full_word in terms_word.items()
+        ]
     )
     patterns = [patterns_words] + patterns_num
     pattern = "|".join(patterns)
@@ -375,7 +394,9 @@ def extract_complex_address_indices(text):
             cur_count += 1
         else:
             if cur_count > 1:
-                merged_indices.append((address_indices[i - cur_count][0], address_indices[i - 1][1]))
+                merged_indices.append(
+                    (address_indices[i - cur_count][0], address_indices[i - 1][1])
+                )
             cur_count = 1
     if cur_count > 1:
         merged_indices.append((address_indices[-cur_count][0], address_indices[-1][1]))
@@ -403,7 +424,7 @@ def find_numeric_sequences(text):
 def get_specific_numbers(text):
     text = text.lower()
     number = r"(?:\d[\s-]*){4,16}"
-    words = r"\b(?:снилс|инн|паспорта?|паспортные данные|полиса?|омс|тел\.?(?:ефона?)?|№|карты|[ин]\s*/\s*б|номер)"
+    words = r"(?:снилс|\bинн|паспорта?|паспортные данные|полиса?|\bомс|тел\.?(?:ефона?)?|№|карты|\b[ин]\s*/\s*б|номер)"
     regex = f"{words}[\s:-]*({number})"
     matches = re.finditer(regex, text)
     positions = []

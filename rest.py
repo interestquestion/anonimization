@@ -1,9 +1,17 @@
 import os
 import tempfile
+from typing import Literal
+
 from fastapi import FastAPI, File, Response, UploadFile
-from read import images_to_pdf, pdf_to_images
-from solution import process_image
+
 from parse import *
+from read import (
+    get_image_data_easyocr,
+    get_image_data_tesseract,
+    images_to_pdf,
+    pdf_to_images,
+)
+from solution import process_image
 
 app = FastAPI()
 
@@ -19,15 +27,24 @@ async def read_root():
     responses={200: {"content": {"image/png": {}, "application/pdf": {}}}},
     response_class=Response,
 )
-async def upload(file: UploadFile = File(...)) -> Response:
+async def upload(
+    file: UploadFile = File(...),
+    ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
+    date_year_max: int = 2016,
+) -> Response:
     pd_funcs = [
         get_all_names_mystem,
         extract_complex_address_indices,
         get_phone_numbers_positions,
-        get_bd_positions,
+        lambda text: get_bd_positions(text, date_year_max),
         get_specific_numbers,
         find_numeric_sequences,
     ]
+    get_image_data = (
+        get_image_data_tesseract
+        if ocr_engine == "tesseract"
+        else get_image_data_easyocr
+    )
 
     input_filename = file.filename
     input_filename_ext = input_filename.split(".")[-1]
@@ -48,6 +65,7 @@ async def upload(file: UploadFile = File(...)) -> Response:
                 f"{tmp_dir.name}/{img}",
                 f"{tmp_output_dir.name}/{img}",
                 pd_funcs,
+                get_image_data,
             )
         images_to_pdf(tmp_output_dir.name, output_file.name)
         tmp_dir.cleanup()
@@ -57,6 +75,7 @@ async def upload(file: UploadFile = File(...)) -> Response:
             tmp_input_file.name,
             output_file.name,
             pd_funcs,
+            get_image_data,
         )
     else:
         return Response(

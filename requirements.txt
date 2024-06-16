@@ -1,0 +1,14 @@
+easyocr
+fastapi
+img2pdf
+natasha
+numpy
+opencv_contrib_python
+opencv_python
+opencv_python_headless
+pdf2image
+Pillow
+pymystem3
+pyocr
+pytesseract
+spacy

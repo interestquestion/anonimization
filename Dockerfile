@@ -21,6 +21,7 @@ COPY requirements.txt .
 RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install -U --no-cache-dir -r requirements.txt
 RUN pip install -U --no-cache-dir numpy==1.26.4
+RUN pip install python-multipart
 
 # Copy the source code
 COPY . .

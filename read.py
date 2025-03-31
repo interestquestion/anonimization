@@ -1,5 +1,7 @@
 import os
-
+import subprocess
+import time
+import logging
 import cv2
 # import easyocr
 import img2pdf
@@ -8,6 +10,23 @@ import pytesseract
 from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw
 from pytesseract import Output
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize LibreOffice service
+try:
+    soffice_process = subprocess.Popen(
+        ['/usr/bin/libreoffice', '--headless', '--accept=socket,host=127.0.0.1,port=2002;urp;', 
+         '--norestore', '--nodefault', '--nofirststartwizard'],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    # Give it some time to start
+    time.sleep(1)
+    logger.info("LibreOffice service started.")
+except Exception as e:
+    soffice_process = None
 
 # reader = easyocr.Reader(["ru"])
 
@@ -180,8 +199,18 @@ def docx_to_pdf(docx_path: str, pdf_output_path: str) -> None:
         docx_path: Path to the input .doc or .docx file
         pdf_output_path: Path to save the output PDF
     """
-    import subprocess
     try:
-        subprocess.run(['unoconv', '-f', 'pdf', '-o', pdf_output_path, docx_path], check=True, stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"Failed to convert document to PDF: {e}")
+        if os.name == "nt":  # Windows
+            # Use the full path to unoconv in LibreOffice installation
+            unoconv_path = os.path.join(os.environ.get('PROGRAMFILES', 'C:\\Program Files'), 
+                                      'LibreOffice', 'program', 'python.exe')
+            subprocess.run([unoconv_path, 'unoconv', '-f', 'pdf', '-o', pdf_output_path, docx_path], 
+                          check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:  # Linux/Mac
+            subprocess.run(['unoconv', '-f', 'pdf', '-o', pdf_output_path, docx_path], 
+                          check=True, timeout=30, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        logger.info("Successfully converted document to PDF")
+    except Exception as e:
+        error_msg = f"Failed to convert document to PDF: {e}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)

@@ -423,7 +423,7 @@ def extract_complex_address_indices(text):
         
         # Validate the address before accepting it
         if is_valid_address(address_text):
-            merged_indices.append((start, end))
+            merged_indices.append((start, end - 1))
             logger.info(f"Address detected: {address_text} (anonymized)")
     return merged_indices
 
@@ -431,12 +431,9 @@ def is_valid_address(text):
     """
     Validate an address to avoid false positives.
     """
+    logger.info(f"Validating address: {text}")
     # Minimum reasonable length for an address
     if len(text) < 10:
-        return False
-    
-    # Must contain at least one digit (for house number, etc.)
-    if not re.search(r'\d', text):
         return False
     
     # Check for common address components

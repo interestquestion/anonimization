@@ -10,8 +10,13 @@ from read import (
     get_image_data_tesseract,
     images_to_pdf,
     pdf_to_images,
+    docx_to_pdf,
 )
 from solution import process_image
+
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
 
 app = FastAPI()
 
@@ -24,7 +29,10 @@ async def read_root():
 # upload image and return modified file
 @app.post(
     "/upload/",
-    responses={200: {"content": {"image/png": {}, "application/pdf": {}}}},
+    responses={
+        200: {"content": {"image/png": {}, "application/pdf": {}}},
+        415: {"description": "Unsupported file format. Please upload a .pdf, .png, .jpg, .jpeg, .doc, or .docx file."},
+    },
     response_class=Response,
 )
 async def upload(
@@ -71,6 +79,35 @@ async def upload(
             images_to_pdf(tmp_output_dir.name, output_file.name)
             tmp_dir.cleanup()
             tmp_output_dir.cleanup()
+        elif input_filename.endswith((".doc", ".docx")):
+            # Create temporary directories for conversion
+            tmp_pdf = tempfile.NamedTemporaryFile(delete=False, dir=".", suffix=".pdf")
+            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_output_dir = tempfile.TemporaryDirectory()
+            
+            # Convert doc/docx to PDF
+            docx_to_pdf(tmp_input_file.name, tmp_pdf.name)
+            
+            # Convert PDF to images
+            pdf_to_images(tmp_pdf.name, tmp_dir.name)
+            
+            # Process each image
+            for img in os.listdir(tmp_dir.name):
+                process_image(
+                    f"{tmp_dir.name}/{img}",
+                    f"{tmp_output_dir.name}/{img}",
+                    pd_funcs,
+                    get_image_data,
+                )
+            
+            # Convert processed images back to PDF
+            images_to_pdf(tmp_output_dir.name, output_file.name)
+            
+            # Cleanup temporary files
+            tmp_pdf.close()
+            os.unlink(tmp_pdf.name)
+            tmp_dir.cleanup()
+            tmp_output_dir.cleanup()
         elif input_filename.endswith((".png", ".jpg", ".jpeg")):
             process_image(
                 tmp_input_file.name,
@@ -87,7 +124,7 @@ async def upload(
             except:
                 pass
             return Response(
-                content="Unsupported file format. Please upload a .pdf, .png, .jpg, or .jpeg file.",
+                content="Unsupported file format. Please upload a .pdf, .png, .jpg, .jpeg, .doc, or .docx file.",
                 status_code=415,
             )
 
@@ -106,7 +143,7 @@ async def upload(
             ),
             headers=(
                 {"Content-Disposition": 'attachment; filename="out.pdf"'}
-                if input_filename.endswith(".pdf")
+                if input_filename.endswith((".pdf", ".doc", ".docx"))
                 else None
             ),
         )

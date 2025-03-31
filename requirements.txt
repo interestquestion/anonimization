@@ -1,4 +1,4 @@
-easyocr
+# easyocr
 fastapi
 fastapi-cli
 img2pdf
@@ -11,3 +11,4 @@ pymystem3
 pyocr
 pytesseract
 spacy
+unoconv

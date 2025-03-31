@@ -1,7 +1,7 @@
 import os
 
 import cv2
-import easyocr
+# import easyocr
 import img2pdf
 import numpy as np
 import pytesseract
@@ -9,7 +9,7 @@ from pdf2image import convert_from_bytes
 from PIL import Image, ImageDraw
 from pytesseract import Output
 
-reader = easyocr.Reader(["ru"])
+# reader = easyocr.Reader(["ru"])
 
 TARGET_HEIGHT = 2048
 RESIZE_FACTOR = 1
@@ -171,3 +171,17 @@ def images_to_pdf(images_path: str, output_path: str) -> None:
     images.sort(key=sort_key)
     with open(output_path, "wb") as f:
         f.write(img2pdf.convert(images))
+
+
+def docx_to_pdf(docx_path: str, pdf_output_path: str) -> None:
+    """Convert a .doc or .docx file to PDF using unoconv (LibreOffice)
+    
+    Args:
+        docx_path: Path to the input .doc or .docx file
+        pdf_output_path: Path to save the output PDF
+    """
+    import subprocess
+    try:
+        subprocess.run(['unoconv', '-f', 'pdf', '-o', pdf_output_path, docx_path], check=True, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to convert document to PDF: {e}")

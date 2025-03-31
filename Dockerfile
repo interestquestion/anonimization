@@ -8,6 +8,8 @@ RUN apt-get update && \
     tesseract-ocr-rus \
     python3-opencv \
     poppler-utils \
+    libreoffice \
+    unoconv \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -18,7 +20,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# RUN pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 RUN pip install -U --no-cache-dir -r requirements.txt
 RUN pip install -U --no-cache-dir numpy==1.26.4
 RUN pip install python-multipart

@@ -10,6 +10,10 @@ from address import CITIES, REGIONS
 
 # SPACY_MODEL_LG = spacy.load("ru_core_news_lg")
 
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 MYSTEM = Mystem()
 
 
@@ -74,6 +78,7 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
     analyze = MYSTEM.analyze(text)
     names_positions = []
     last_index = 0
+    previous_words = []
     previous_word_positions = []
     previous_word_tags = []
     # add positions if consecutive word tags are фам, имя, отч or фам, имя or имя отч фам or имя фам
@@ -90,20 +95,29 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
         elif "отч" in analysis["gr"]:
             previous_word_tags.append("отч")
         # if word is one letter, save the tag letter
-        elif len(word["text"].strip(".")) == 1:
+        elif len(word["text"].strip(".")) == 1 and word["text"].strip(".").isalpha():
             previous_word_tags.append("letter")
         else:
             previous_word_tags.append("")
         previous_word_positions.append((index, index + len(word["text"]) - 2))
-
+        previous_words.append(word["text"])
         if previous_word_tags[-3:] in [
             ["фам", "имя", "отч"],
             ["имя", "отч", "фам"],
             ["фам", "letter", "letter"],
+            ["letter", "letter", "фам"],
         ]:
+            detected_name = text[previous_word_positions[-3][0]:previous_word_positions[-1][1]+2]
+            if re.search(r"[\d()]", detected_name):
+                continue
             names_positions += previous_word_positions[-3:]
+            logger.info(f"Name detected (3 words): {detected_name} (anonymized). Previous word tags: {previous_word_tags[-3:]}. Previous words: {previous_words[-3:]}")
         elif previous_word_tags[-2:] in [["фам", "имя"], ["имя", "фам"]]:
+            detected_name = text[previous_word_positions[-2][0]:previous_word_positions[-1][1]+2]
+            if re.search(r"[\d()]", detected_name):
+                continue
             names_positions += previous_word_positions[-2:]
+            logger.info(f"Name detected (2 words): {detected_name} (anonymized). Previous word tags: {previous_word_tags[-2:]}. Previous words: {previous_words[-2:]}")
 
         last_index = index + len(word["text"])
     return names_positions
@@ -299,6 +313,7 @@ def get_phone_numbers_positions(text) -> list[tuple[int, int]]:
         start = match.start()
         end = match.end() - 1
         positions.append((start, end))
+        logger.info(f"Phone number detected: {match.group()} (anonymized)")
     return positions
 
 
@@ -322,6 +337,7 @@ def get_bd_positions(text, date_year_max: int = 2016) -> list[tuple[int, int]]:
             if year > date_year_max or year / 100 < 1 and year > (date_year_max % 100):
                 continue
             bd_positions.append((match.start(1), match.end(1) - 1))
+            logger.info(f"Birth date detected: {match.group(1)} (anonymized)")
         except Exception as e:
             continue
     return bd_positions
@@ -383,7 +399,7 @@ def extract_complex_address_indices(text):
     # if there is just one match, return []
     if len(address_indices) == 1:
         return []
-    # merge indices if they are close, remove lone indices if they form a group of size 1 (keep current number of elements in group)
+    # merge indices if they are close, remove lone indices if they form a group of size 1
     merged_indices = []
     cur_count = 1
     for i in range(1, len(address_indices)):
@@ -391,13 +407,57 @@ def extract_complex_address_indices(text):
             cur_count += 1
         else:
             if cur_count > 1:
-                merged_indices.append(
-                    (address_indices[i - cur_count][0], address_indices[i - 1][1])
-                )
+                start = address_indices[i - cur_count][0]
+                end = address_indices[i - 1][1]
+                address_text = text[start:end+1]
+                
+                # Validate the address before accepting it
+                if is_valid_address(address_text):
+                    merged_indices.append((start, end))
+                    logger.info(f"Address detected: {address_text} (anonymized)")
             cur_count = 1
     if cur_count > 1:
-        merged_indices.append((address_indices[-cur_count][0], address_indices[-1][1]))
+        start = address_indices[-cur_count][0]
+        end = address_indices[-1][1]
+        address_text = text[start:end+1]
+        
+        # Validate the address before accepting it
+        if is_valid_address(address_text):
+            merged_indices.append((start, end))
+            logger.info(f"Address detected: {address_text} (anonymized)")
     return merged_indices
+
+def is_valid_address(text):
+    """
+    Validate an address to avoid false positives.
+    """
+    # Minimum reasonable length for an address
+    if len(text) < 10:
+        return False
+    
+    # Must contain at least one digit (for house number, etc.)
+    if not re.search(r'\d', text):
+        return False
+    
+    # Check for common address components
+    address_components = ['ул', 'д', 'дом', 'кв', 'г', 'пер', 'обл', 'пос', 'р-н', 'район']
+    has_component = False
+    for component in address_components:
+        if re.search(rf'\b{component}[\s\.,]', text, re.IGNORECASE):
+            has_component = True
+            break
+    
+    # Check for sequences of uppercase letters that look like abbreviations
+    if re.search(r'[А-Я]{3,}', text) and not has_component:
+        return False
+    
+    # Avoid very short phrases with commas that are likely not addresses
+    comma_parts = text.split(',')
+    if len(comma_parts) >= 2 and any(len(part.strip()) <= 2 for part in comma_parts):
+        # If parts are very short, require more address-like patterns
+        return has_component and re.search(r'\d+', text)
+    
+    return has_component or re.search(r'\b\d+\s*[\.,]?\s*\w+', text)
 
 
 def find_16_digit_numbers(text):
@@ -414,7 +474,12 @@ def find_numeric_sequences(text):
 
     matches = number_regex.finditer(text)
 
-    number_indices = [(match.start(), match.end() - 3) for match in matches]
+    number_indices = []
+    for match in matches:
+        start = match.start()
+        end = match.end() - 3
+        number_indices.append((start, end))
+        logger.info(f"Numeric sequence detected: {text[start:end]} (anonymized)")
     return number_indices
 
 
@@ -426,5 +491,8 @@ def get_specific_numbers(text):
     matches = re.finditer(regex, text)
     positions = []
     for match in matches:
-        positions.append((match.start(1), match.end(1) - 3))
+        start = match.start(1)
+        end = match.end(1) - 3
+        positions.append((start, end))
+        logger.info(f"Specific number detected: {text[start:end]} (type: {match.group().split()[0]}, anonymized)")
     return positions

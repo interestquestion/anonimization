@@ -40,6 +40,7 @@ async def upload(
     ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
     date_year_max: int = 2016,
     auto_rotate: bool = True,
+    remove_stamps: bool = False,
 ) -> Response:
     pd_funcs = [
         get_all_names_mystem,
@@ -57,110 +58,104 @@ async def upload(
     
     # Choose the appropriate OCR function based on engine
     get_image_data = get_image_data_tesseract if ocr_engine == "tesseract" else get_image_data_easyocr
+    
+    # Only providing the remove_stamps parameter, no detailed stamp parameters in API
+    stamp_params = None
 
-    try:
-        input_filename = file.filename
-        input_filename_ext = input_filename.split(".")[-1]
-        tmp_input_file = tempfile.NamedTemporaryFile(
-            delete=False, dir=".", suffix=f".{input_filename_ext}"
-        )
-        tmp_input_file.write(await file.read())
-        output_file = tempfile.NamedTemporaryFile(
-            delete=False, dir=".", suffix=f".{input_filename_ext}"
-        )
-
-        if input_filename.endswith(".pdf"):
-            tmp_dir = tempfile.TemporaryDirectory()
-            tmp_output_dir = tempfile.TemporaryDirectory()
-            pdf_to_images(tmp_input_file.name, tmp_dir.name)
-            for img in os.listdir(tmp_dir.name):
-                process_image(
-                    f"{tmp_dir.name}/{img}",
-                    f"{tmp_output_dir.name}/{img}",
-                    pd_funcs,
-                    lambda img_path: get_image_data(img_path, auto_rotate),
-                )
-            images_to_pdf(tmp_output_dir.name, output_file.name)
-            tmp_dir.cleanup()
-            tmp_output_dir.cleanup()
-        elif input_filename.endswith((".doc", ".docx")):
-            # Create temporary directories for conversion
-            tmp_pdf = tempfile.NamedTemporaryFile(delete=False, dir=".", suffix=".pdf")
-            tmp_dir = tempfile.TemporaryDirectory()
-            tmp_output_dir = tempfile.TemporaryDirectory()
-            
-            # Convert doc/docx to PDF
-            docx_to_pdf(tmp_input_file.name, tmp_pdf.name)
-            
-            # Convert PDF to images
-            pdf_to_images(tmp_pdf.name, tmp_dir.name)
-            
-            # Process each image
-            for img in os.listdir(tmp_dir.name):
-                process_image(
-                    f"{tmp_dir.name}/{img}",
-                    f"{tmp_output_dir.name}/{img}",
-                    pd_funcs,
-                    lambda img_path: get_image_data(img_path, auto_rotate),
-                )
-            
-            # Convert processed images back to PDF
-            images_to_pdf(tmp_output_dir.name, output_file.name)
-            
-            # Cleanup temporary files
-            tmp_pdf.close()
-            os.unlink(tmp_pdf.name)
-            tmp_dir.cleanup()
-            tmp_output_dir.cleanup()
-        elif input_filename.endswith((".png", ".jpg", ".jpeg")):
-            process_image(
-                tmp_input_file.name,
-                output_file.name,
-                pd_funcs,
-                lambda img_path: get_image_data(img_path, auto_rotate),
-            )
-        else:
-            try:
-                output_file.close()
-                os.unlink(output_file.name)
-                tmp_input_file.close()
-                os.unlink(tmp_input_file.name)
-            except:
-                pass
-            return Response(
-                content="Unsupported file format. Please upload a .pdf, .png, .jpg, .jpeg, .doc, or .docx file.",
-                status_code=415,
-            )
-
-        output_content = output_file.read()
-        output_file.close()
-        os.unlink(output_file.name)
-        tmp_input_file.close()
-        os.unlink(tmp_input_file.name)
-
-        return Response(
-            content=output_content,
-            media_type=(
-                "image/png"
-                if input_filename.endswith((".png", ".jpg", ".jpeg"))
-                else "application/pdf"
-            ),
-            headers=(
-                {"Content-Disposition": 'attachment; filename="out.pdf"'}
-                if input_filename.endswith((".pdf", ".doc", ".docx"))
-                else None
-            ),
-        )
-    except Exception as e:
-        print(e)
+    # Create a temporary directory for all files
+    with tempfile.TemporaryDirectory() as temp_dir:
         try:
-            output_file.close()
-            os.unlink(output_file.name)
-            tmp_input_file.close()
-            os.unlink(tmp_input_file.name)
-        except:
-            pass
-        return Response(
-            content="Error while processing the file.",
-            status_code=500,
-        )
+            input_filename = file.filename
+            input_filename_ext = input_filename.split(".")[-1]
+            
+            # Create temporary files in the temporary directory
+            tmp_input_path = os.path.join(temp_dir, f"input.{input_filename_ext}")
+            with open(tmp_input_path, "wb") as tmp_input_file:
+                tmp_input_file.write(await file.read())
+            
+            output_path = os.path.join(temp_dir, f"output.{input_filename_ext}")
+
+            if input_filename.endswith(".pdf"):
+                images_dir = os.path.join(temp_dir, "pdf_images")
+                output_images_dir = os.path.join(temp_dir, "output_images")
+                os.makedirs(images_dir, exist_ok=True)
+                os.makedirs(output_images_dir, exist_ok=True)
+                
+                pdf_to_images(tmp_input_path, images_dir)
+                for img in os.listdir(images_dir):
+                    process_image(
+                        f"{images_dir}/{img}",
+                        f"{output_images_dir}/{img}",
+                        pd_funcs,
+                        lambda img_path: get_image_data(img_path, auto_rotate),
+                        remove_stamps=remove_stamps,
+                        stamp_params=stamp_params,
+                    )
+                images_to_pdf(output_images_dir, output_path)
+                
+            elif input_filename.endswith((".doc", ".docx")):
+                # Create temporary directories for conversion
+                tmp_pdf_path = os.path.join(temp_dir, "temp.pdf")
+                images_dir = os.path.join(temp_dir, "doc_images")
+                output_images_dir = os.path.join(temp_dir, "output_images")
+                os.makedirs(images_dir, exist_ok=True)
+                os.makedirs(output_images_dir, exist_ok=True)
+                
+                # Convert doc/docx to PDF
+                docx_to_pdf(tmp_input_path, tmp_pdf_path)
+                
+                # Convert PDF to images
+                pdf_to_images(tmp_pdf_path, images_dir)
+                
+                # Process each image
+                for img in os.listdir(images_dir):
+                    process_image(
+                        f"{images_dir}/{img}",
+                        f"{output_images_dir}/{img}",
+                        pd_funcs,
+                        lambda img_path: get_image_data(img_path, auto_rotate),
+                        remove_stamps=remove_stamps,
+                        stamp_params=stamp_params,
+                    )
+                
+                # Convert processed images back to PDF
+                images_to_pdf(output_images_dir, output_path)
+                
+            elif input_filename.endswith((".png", ".jpg", ".jpeg")):
+                process_image(
+                    tmp_input_path,
+                    output_path,
+                    pd_funcs,
+                    lambda img_path: get_image_data(img_path, auto_rotate),
+                    remove_stamps=remove_stamps,
+                    stamp_params=stamp_params,
+                )
+            else:
+                return Response(
+                    content="Unsupported file format. Please upload a .pdf, .png, .jpg, .jpeg, .doc, or .docx file.",
+                    status_code=415,
+                )
+
+            # Read the output file
+            with open(output_path, "rb") as f:
+                output_content = f.read()
+
+            return Response(
+                content=output_content,
+                media_type=(
+                    "image/png"
+                    if input_filename.endswith((".png", ".jpg", ".jpeg"))
+                    else "application/pdf"
+                ),
+                headers=(
+                    {"Content-Disposition": 'attachment; filename="out.pdf"'}
+                    if input_filename.endswith((".pdf", ".doc", ".docx"))
+                    else None
+                ),
+            )
+        except Exception as e:
+            print(f"Error processing file: {e}")
+            return Response(
+                content="Error while processing the file.",
+                status_code=500,
+            )

@@ -49,8 +49,108 @@ def resize_image_to_height(
     return resized_image, resize_factor
 
 
-def get_image_data_tesseract(image_path):
-    image = cv2.imread(image_path)
+def detect_and_correct_orientation(image):
+    """
+    Detects the orientation of text in an image using Tesseract OSD (Orientation and Script Detection)
+    and rotates the image to correct the orientation.
+    
+    Args:
+        image: The input image as numpy array
+        
+    Returns:
+        The rotated image if orientation correction was needed, otherwise the original image
+    """
+    try:
+        # Using tesseract OSD to detect orientation
+        osd = pytesseract.image_to_osd(image, output_type=Output.DICT)
+        angle = osd['rotate']
+        
+        # If angle is 0, no rotation needed
+        if angle == 0:
+            return image, False
+        
+        angle = 360 - angle
+
+        if angle == 90:
+            rotated = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        elif angle == 180:
+            rotated = cv2.rotate(image, cv2.ROTATE_180)
+        else:
+            rotated = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+        
+        return rotated, True
+    except Exception as e:
+        # If orientation detection fails, return original image
+        logger.warning(f"Orientation detection failed: {e}")
+        return image, False
+
+
+def rotate_and_save_image(image_path, auto_rotate=False):
+    """
+    Reads an image, potentially rotates it based on text orientation,
+    and saves it to a temporary file if rotated.
+    
+    Args:
+        image_path: Path to the input image
+        auto_rotate: Whether to perform auto-rotation
+        
+    Returns:
+        Path to the rotated image (or original if no rotation was needed or requested)
+        and whether the image was rotated
+    """
+    if not auto_rotate:
+        return image_path, False
+    
+    try:
+        # Read the image
+        image = cv2.imread(image_path)
+        if image is None:
+            logger.warning(f"Could not read image: {image_path}")
+            return image_path, False
+            
+        # Convert to grayscale for processing
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # Detect and correct orientation
+        rotated_image, was_rotated = detect_and_correct_orientation(gray_image)
+        
+        if not was_rotated:
+            return image_path, False
+            
+        # Create a temporary file for the rotated image
+        image_ext = os.path.splitext(image_path)[1]
+        temp_rotated_path = os.path.join(
+            os.path.dirname(image_path),
+            f"rotated_{os.path.basename(image_path)}"
+        )
+        
+        # Convert grayscale back to BGR for saving if it was rotated
+        if len(rotated_image.shape) == 2:
+            rotated_image_bgr = cv2.cvtColor(rotated_image, cv2.COLOR_GRAY2BGR)
+        else:
+            rotated_image_bgr = rotated_image
+            
+        # Save the rotated image
+        cv2.imwrite(temp_rotated_path, rotated_image_bgr)
+        logger.info(f"Saved rotated image to {temp_rotated_path}")
+        
+        return temp_rotated_path, True
+        
+    except Exception as e:
+        logger.error(f"Error in rotate_and_save_image: {e}")
+        return image_path, False
+
+
+def get_image_data_tesseract(image_path, auto_rotate=False):
+    """Get text and coordinates from an image using Tesseract OCR with optional rotation."""
+    # First handle rotation if needed
+    was_rotated = False
+    actual_image_path = image_path
+    
+    if auto_rotate:
+        actual_image_path, was_rotated = rotate_and_save_image(image_path, auto_rotate)
+    
+    image = cv2.imread(actual_image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     image, resize_factor = resize_image_to_height(image)
 
@@ -73,16 +173,19 @@ def get_image_data_tesseract(image_path):
                 "height": data["height"][i] / resize_factor,
             }
             coordinates.append(char_info)
-    return full_text, coordinates
+    
+    # Always return four values for consistency
+    return full_text, coordinates, was_rotated, actual_image_path
 
 
-def get_image_data_easyocr(image_path):
-    # Загрузка изображения с использованием Pillow
+def get_image_data_easyocr(image_path, auto_rotate=False):
+    """Get text and coordinates from an image using EasyOCR."""
+    if auto_rotate:
+        logger.warning("Auto-rotate requested with easyocr engine - this feature is only supported with tesseract")
+        
     try:
         image = cv2.imread(image_path)
         image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        # image.thumbnail(max_size, Image.LANCZOS)  # Уменьшение разрешения изображения
-        # resized_size = image.size  # Сохраняем уменьшенные размеры изображения
     except Exception as e:
         raise ValueError(f"Unable to read image file: {e}")
 
@@ -121,7 +224,8 @@ def get_image_data_easyocr(image_path):
         full_text = full_text[:-1]
         coordinates = coordinates[:-1]
 
-    return full_text, coordinates
+    # Return four values for consistency with the Tesseract function
+    return full_text, coordinates, False, image_path
 
 
 def get_bounding_rectangles(i, j, full_text, coordinates):

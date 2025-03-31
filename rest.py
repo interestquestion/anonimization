@@ -39,6 +39,7 @@ async def upload(
     file: UploadFile = File(...),
     ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
     date_year_max: int = 2016,
+    auto_rotate: bool = True,
 ) -> Response:
     pd_funcs = [
         get_all_names_mystem,
@@ -48,11 +49,14 @@ async def upload(
         get_specific_numbers,
         find_numeric_sequences,
     ]
-    get_image_data = (
-        get_image_data_tesseract
-        if ocr_engine == "tesseract"
-        else get_image_data_easyocr
-    )
+    
+    # Auto-rotate is only supported with Tesseract engine
+    if auto_rotate and ocr_engine != "tesseract":
+        auto_rotate = False
+        logger.warning("Auto-rotate is only supported with Tesseract engine. Disabling auto-rotate.")
+    
+    # Choose the appropriate OCR function based on engine
+    get_image_data = get_image_data_tesseract if ocr_engine == "tesseract" else get_image_data_easyocr
 
     try:
         input_filename = file.filename
@@ -74,7 +78,7 @@ async def upload(
                     f"{tmp_dir.name}/{img}",
                     f"{tmp_output_dir.name}/{img}",
                     pd_funcs,
-                    get_image_data,
+                    lambda img_path: get_image_data(img_path, auto_rotate),
                 )
             images_to_pdf(tmp_output_dir.name, output_file.name)
             tmp_dir.cleanup()
@@ -97,7 +101,7 @@ async def upload(
                     f"{tmp_dir.name}/{img}",
                     f"{tmp_output_dir.name}/{img}",
                     pd_funcs,
-                    get_image_data,
+                    lambda img_path: get_image_data(img_path, auto_rotate),
                 )
             
             # Convert processed images back to PDF
@@ -113,7 +117,7 @@ async def upload(
                 tmp_input_file.name,
                 output_file.name,
                 pd_funcs,
-                get_image_data,
+                lambda img_path: get_image_data(img_path, auto_rotate),
             )
         else:
             try:

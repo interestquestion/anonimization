@@ -1,4 +1,5 @@
 import cv2
+from PIL import Image
 import numpy as np
 import os
 import logging
@@ -266,6 +267,63 @@ def process_image_remove_stamps(image_path: str, output_path: str = None,
         logger.info(f"Saved stamp-removed image to {output_path}")
     
     return result
+
+
+def find_blue_squares(image_path, square_size=15, threshold_percent=0.1, blue_diff_threshold=4, adjacent=3):
+
+    image = Image.open(image_path).convert("RGB")
+    img = np.array(image)  
+    average_color = np.mean(img, axis=(0, 1)).astype(np.int32)
+
+    img = img - average_color
+
+    height, width, _ = img.shape
+
+    blue_squares = []
+
+    for y in range(0, height, square_size):
+        for x in range(0, width, square_size):
+            y_min = y
+            y_max = min(y + square_size, height)
+            x_min = x
+            x_max = min(x + square_size, width)
+
+            square = img[y_min:y_max, x_min:x_max]
+
+            blue_dominant = (
+                square[:, :, 2] > np.maximum(square[:, :, 0], square[:, :, 1]) + blue_diff_threshold
+            )
+
+            percent_blue_dominant = np.mean(blue_dominant)
+
+            if percent_blue_dominant >= threshold_percent:
+                rect = {
+                    "left": x_min,
+                    "top": y_min,
+                    "width": x_max - x_min,
+                    "height": y_max - y_min,
+                }
+                blue_squares.append(rect)
+
+    def is_adjacent(rect1, rect2):
+        return not (
+            rect1["left"] + rect1["width"] < rect2["left"] or
+            rect2["left"] + rect2["width"] < rect1["left"] or
+            rect1["top"] + rect1["height"] < rect2["top"] or
+            rect2["top"] + rect2["height"] < rect1["top"]
+        )
+
+    filtered_squares = []
+    for rect in blue_squares:
+        count = 0
+        for other_rect in blue_squares:
+            if rect != other_rect and is_adjacent(rect, other_rect):
+                count += 1
+        if count >= adjacent:
+            filtered_squares.append(rect)
+
+    return filtered_squares
+
 
 if __name__ == "__main__":
     # Test the stamp removal on a sample image

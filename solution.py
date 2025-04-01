@@ -2,7 +2,7 @@ from typing import Callable
 from read import *
 from parse import *
 from read import logger  # Import the logger from read.py
-from stamp_removal import process_image_remove_stamps
+from stamp_removal import process_image_remove_stamps, find_blue_squares
 import tempfile
 
 # if windows
@@ -12,7 +12,8 @@ if os.name == "nt":
 
 
 def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], get_image_data: Callable, 
-                  remove_stamps: bool = False, stamp_params: dict = None) -> None:
+                  remove_stamps: bool = False, blue_remove_stamps_and_signs: bool = False, 
+                  stamp_params: dict = None) -> None:
     """
     Process an image to anonymize specified personal data.
     
@@ -77,6 +78,10 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
     rectangles = []
     for i, j in positions:
         rectangles.extend(get_bounding_rectangles(i, j, full_text, coordinates))
+    
+    if blue_remove_stamps_and_signs:
+
+        rectangles += find_blue_squares(actual_image_path)
 
     # Use the rotated image path if image was rotated
     draw_rectangles(ocr_image_path, output_path, rectangles)

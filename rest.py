@@ -41,6 +41,7 @@ async def upload(
     date_year_max: int = 2016,
     auto_rotate: bool = True,
     remove_stamps: bool = False,
+    blue_remove_stamps_and_signs: bool = False
 ) -> Response:
     pd_funcs = [
         get_all_names_mystem,
@@ -89,6 +90,7 @@ async def upload(
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
                         remove_stamps=remove_stamps,
+                        blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
                     )
                 images_to_pdf(output_images_dir, output_path)
@@ -115,6 +117,7 @@ async def upload(
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
                         remove_stamps=remove_stamps,
+                        blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
                     )
                 
@@ -128,6 +131,7 @@ async def upload(
                     pd_funcs,
                     lambda img_path: get_image_data(img_path, auto_rotate),
                     remove_stamps=remove_stamps,
+                    blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                     stamp_params=stamp_params,
                 )
             else:

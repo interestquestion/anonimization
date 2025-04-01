@@ -40,9 +40,7 @@ async def upload(
     ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
     date_year_max: int = 2016,
     auto_rotate: bool = True,
-    remove_stamps: bool = True,
-    blue_remove_stamps_and_signs: bool = False,
-    stamp_removal_method: Literal["contour", "circle"] = "contour"
+    stamp_removal_method: Literal["nothing","contour", "circle", "blue"] = "contour"
 ) -> Response:
     pd_funcs = [
         get_all_names_mystem,
@@ -90,8 +88,6 @@ async def upload(
                         f"{output_images_dir}/{img}",
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
-                        remove_stamps=remove_stamps,
-                        blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
                         stamp_removal_method=stamp_removal_method
                     )
@@ -118,8 +114,6 @@ async def upload(
                         f"{output_images_dir}/{img}",
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
-                        remove_stamps=remove_stamps,
-                        blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
                         stamp_removal_method=stamp_removal_method
                     )
@@ -133,8 +127,6 @@ async def upload(
                     output_path,
                     pd_funcs,
                     lambda img_path: get_image_data(img_path, auto_rotate),
-                    remove_stamps=remove_stamps,
-                    blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                     stamp_params=stamp_params,
                     stamp_removal_method=stamp_removal_method
                 )

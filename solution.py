@@ -2,7 +2,7 @@ from typing import Callable
 from read import *
 from parse import *
 from read import logger  # Import the logger from read.py
-from stamp_removal import process_image_remove_stamps, find_blue_squares
+from stamp_removal import process_image_remove_stamps, process_image_remove_stamps_contour_based, find_blue_squares
 import tempfile
 
 # if windows
@@ -13,7 +13,7 @@ if os.name == "nt":
 
 def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], get_image_data: Callable, 
                   remove_stamps: bool = False, blue_remove_stamps_and_signs: bool = False, 
-                  stamp_params: dict = None) -> None:
+                  stamp_params: dict = None, stamp_removal_method: str = "contour") -> None:
     """
     Process an image to anonymize specified personal data.
     
@@ -23,7 +23,9 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
         pd_funcs: List of functions to detect personal data
         get_image_data: Function to extract text and coordinates from image
         remove_stamps: Whether to remove round stamps from the image
+        blue_remove_stamps_and_signs: Whether to remove blue squares (typically signatures)
         stamp_params: Parameters for stamp removal (optional)
+        stamp_removal_method: Method to use for stamp removal ('contour' or 'circle')
     """
     # Apply stamp removal if requested
     actual_image_path = image_path
@@ -31,36 +33,56 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
     temp_dir = None
     
     if remove_stamps:
-        logger.info("Removing round stamps from the image...")
-        # Default parameters for stamp removal
-        default_params = {
-            "min_radius": 50,
-            "max_radius": 150,
-            "param1": 100,
-            "param2": 60,
-            "dp": 1.2,
-            "color_filtering": True,
-            "blue_threshold": 0.05,
-            "dark_threshold": 150,
-            "bottom_half_only": False,
-            "white_fill": True,
-            "debug": False
-        }
-        
-        # Use provided parameters or defaults
-        params = {**default_params, **(stamp_params or {})}
+        logger.info(f"Removing stamps from the image using {stamp_removal_method} method...")
         
         # Create a temporary directory for the stamp-removed image
         temp_dir = tempfile.TemporaryDirectory()
         base_name = os.path.basename(image_path)
         temp_path = os.path.join(temp_dir.name, f"nostamp_{base_name}")
         
-        # Process the image to remove stamps
-        process_image_remove_stamps(
-            image_path,
-            temp_path,
-            **params
-        )
+        if stamp_removal_method == "circle":
+            # Default parameters for circle-based stamp removal
+            default_params = {
+                "min_radius": 50,
+                "max_radius": 150,
+                "param1": 100,
+                "param2": 60,
+                "dp": 1.2,
+                "color_filtering": True,
+                "blue_threshold": 0.05,
+                "dark_threshold": 150,
+                "bottom_half_only": False,
+                "white_fill": True,
+                "debug": False
+            }
+            
+            # Use provided parameters or defaults
+            params = {**default_params, **(stamp_params or {})}
+            
+            # Process the image to remove stamps using circle detection
+            process_image_remove_stamps(
+                image_path,
+                temp_path,
+                **params
+            )
+        else:  # default to contour method
+            # Default parameters for contour-based stamp removal
+            default_params = {
+                "min_area": 500,
+                "ratio_threshold": 0.65,
+                "min_radius_ratio": 0.03,
+                "debug": False
+            }
+            
+            # Use provided parameters or defaults
+            params = {**default_params, **(stamp_params or {})}
+            
+            # Process the image to remove stamps using contour-based method
+            process_image_remove_stamps_contour_based(
+                image_path,
+                temp_path,
+                **params
+            )
         
         # Use the stamp-removed image for further processing
         actual_image_path = temp_path

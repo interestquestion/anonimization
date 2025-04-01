@@ -40,8 +40,9 @@ async def upload(
     ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
     date_year_max: int = 2016,
     auto_rotate: bool = True,
-    remove_stamps: bool = False,
-    blue_remove_stamps_and_signs: bool = False
+    remove_stamps: bool = True,
+    blue_remove_stamps_and_signs: bool = False,
+    stamp_removal_method: Literal["contour", "circle"] = "contour"
 ) -> Response:
     pd_funcs = [
         get_all_names_mystem,
@@ -92,6 +93,7 @@ async def upload(
                         remove_stamps=remove_stamps,
                         blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
+                        stamp_removal_method=stamp_removal_method
                     )
                 images_to_pdf(output_images_dir, output_path)
                 
@@ -119,6 +121,7 @@ async def upload(
                         remove_stamps=remove_stamps,
                         blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                         stamp_params=stamp_params,
+                        stamp_removal_method=stamp_removal_method
                     )
                 
                 # Convert processed images back to PDF
@@ -133,6 +136,7 @@ async def upload(
                     remove_stamps=remove_stamps,
                     blue_remove_stamps_and_signs=blue_remove_stamps_and_signs,
                     stamp_params=stamp_params,
+                    stamp_removal_method=stamp_removal_method
                 )
             else:
                 return Response(

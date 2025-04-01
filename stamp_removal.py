@@ -324,6 +324,130 @@ def find_blue_squares(image_path, square_size=15, threshold_percent=0.1, blue_di
 
     return filtered_squares
 
+def remove_stamps_contour_based(image: np.ndarray, min_area: int = 500, 
+                              ratio_threshold: float = 0.65, 
+                              min_radius_ratio: float = 0.03, 
+                              debug: bool = False) -> np.ndarray:
+    """
+    Remove stamps from an image using contour-based method.
+    
+    Args:
+        image: Input image as numpy array
+        min_area: Minimum area of contours to consider
+        ratio_threshold: Minimum ratio of hull area to circle area
+        min_radius_ratio: Minimum radius as a proportion of image height
+        debug: Whether to save debug masks
+        
+    Returns:
+        Image with stamps removed
+    """
+    # Create a copy of the image for output
+    output_image = image.copy()
+    height, width = image.shape[:2]
+    
+    # Convert to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    
+    # Apply blur to reduce noise
+    blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+    
+    # Apply adaptive threshold to highlight potential stamps
+    binary = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                  cv2.THRESH_BINARY_INV, 11, 4)
+    
+    # Find contours
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Save mask for debugging if requested
+    if debug:
+        debug_binary = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+        cv2.imwrite("debug_mask.png", debug_binary)
+        
+        # Initialize a debug image to visualize detected stamps
+        debug_image = image.copy()
+    
+    # Process each contour
+    stamps_found = False
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_area:
+            continue
+        
+        # Get minimum enclosing circle
+        (x, y), radius = cv2.minEnclosingCircle(contour)
+        circle_area = np.pi * (radius ** 2)
+        
+        # Skip if radius is too small relative to image height
+        if radius / height < min_radius_ratio:
+            continue
+        
+        # Get convex hull of contour
+        hull = cv2.convexHull(contour)
+        hull_area = cv2.contourArea(hull)
+        
+        # Compare hull area to minimum circle area
+        if (circle_area > min_area and 
+            hull_area > min_area and 
+            (hull_area / circle_area) > ratio_threshold):
+            
+            # Fill the convex hull with white
+            cv2.drawContours(output_image, [hull], -1, (255, 255, 255), thickness=-1)
+            stamps_found = True
+            
+            # Add to debug image if enabled
+            if debug:
+                cv2.drawContours(debug_image, [hull], -1, (0, 255, 0), 2)
+                cv2.circle(debug_image, (int(x), int(y)), int(radius), (0, 0, 255), 2)
+    
+    # Save debug visualization if requested
+    if debug and stamps_found:
+        cv2.imwrite("debug_stamp_contours.jpg", debug_image)
+    
+    return output_image
+
+def process_image_remove_stamps_contour_based(image_path: str, output_path: str = None,
+                                           min_area: int = 500,
+                                           ratio_threshold: float = 0.65,
+                                           min_radius_ratio: float = 0.03,
+                                           debug: bool = False) -> np.ndarray:
+    """
+    Process an image to remove stamps using contour-based method.
+    
+    Args:
+        image_path: Path to the input image
+        output_path: Path to save the output image (if None, image is not saved)
+        min_area: Minimum area of contours to consider
+        ratio_threshold: Minimum ratio of hull area to circle area
+        min_radius_ratio: Minimum radius as a proportion of image height
+        debug: Whether to save debug images
+        
+    Returns:
+        Processed image with stamps removed
+    """
+    # Read the image
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError(f"Could not read image: {image_path}")
+    
+    # Create a directory for stamp removal results if it doesn't exist
+    if output_path and not os.path.exists(os.path.dirname(output_path)):
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # Apply contour-based stamp removal
+    result = remove_stamps_contour_based(
+        image,
+        min_area=min_area,
+        ratio_threshold=ratio_threshold,
+        min_radius_ratio=min_radius_ratio,
+        debug=debug
+    )
+    
+    # Save the result if output path is provided
+    if output_path:
+        cv2.imwrite(output_path, result)
+        logger.info(f"Saved stamp-removed image to: {output_path}")
+    
+    return result
 
 if __name__ == "__main__":
     # Test the stamp removal on a sample image

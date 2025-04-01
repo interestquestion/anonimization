@@ -6,39 +6,11 @@ from pymystem3 import Mystem
 
 from address import CITIES, REGIONS
 
-# import spacy
-
-# SPACY_MODEL_LG = spacy.load("ru_core_news_lg")
-
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 MYSTEM = Mystem()
-
-
-# def get_all_names_spacy(text) -> list[tuple[int, int]]:
-#     doc = SPACY_MODEL_LG(text)
-#     names_positions = []
-#     for token in doc:
-#         print(
-#             f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
-#         )
-#         if token.ent_type_ == "PER":
-#             names_positions.append((token.idx, token.idx + len(token.text) - 1))
-#     return names_positions
-
-
-# def get_all_addresses_spacy(text) -> list[tuple[int, int]]:
-#     doc = SPACY_MODEL_LG(text)
-#     addresses_positions = []
-#     for token in doc:
-#         print(
-#             f"{token.text} {token.pos_} {token.dep_} {token.head.text} {token.ent_type_}"
-#         )
-#         if token.ent_type_ == "LOC":
-#             addresses_positions.append((token.idx, token.idx + len(token.text) - 1))
-#     return addresses_positions
 
 
 def get_all_addresses_natasha(text) -> list[tuple[int, int]]:
@@ -108,16 +80,16 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
             ["letter", "letter", "фам"],
         ]:
             detected_name = text[previous_word_positions[-3][0]:previous_word_positions[-1][1]+2]
-            if re.search(r"[\d()]", detected_name):
+            if re.search(r"[\d()№]", detected_name):
                 continue
             names_positions += previous_word_positions[-3:]
-            logger.info(f"Name detected (3 words): {detected_name} (anonymized). Previous word tags: {previous_word_tags[-3:]}. Previous words: {previous_words[-3:]}")
+            logger.info(f"Name detected (3 words): {detected_name} (anonymized).")
         elif previous_word_tags[-2:] in [["фам", "имя"], ["имя", "фам"]]:
             detected_name = text[previous_word_positions[-2][0]:previous_word_positions[-1][1]+2]
-            if re.search(r"[\d()]", detected_name):
+            if re.search(r"[\d()№]", detected_name):
                 continue
             names_positions += previous_word_positions[-2:]
-            logger.info(f"Name detected (2 words): {detected_name} (anonymized). Previous word tags: {previous_word_tags[-2:]}. Previous words: {previous_words[-2:]}")
+            logger.info(f"Name detected (2 words): {detected_name} (anonymized).")
 
         last_index = index + len(word["text"])
     return names_positions

@@ -12,7 +12,7 @@ if os.name == "nt":
 
 
 def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], get_image_data: Callable, 
-                  stamp_removal_method: str = "contour", stamp_params: dict = None) -> None:
+                  stamp_removal_method: str = "contour") -> None:
     """
     Process an image to anonymize specified personal data.
     
@@ -21,10 +21,7 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
         output_path: Path to save the output image
         pd_funcs: List of functions to detect personal data
         get_image_data: Function to extract text and coordinates from image
-        remove_stamps: Whether to remove round stamps from the image
-        blue_remove_stamps_and_signs: Whether to remove blue squares (typically signatures)
-        stamp_params: Parameters for stamp removal (optional)
-        stamp_removal_method: Method to use for stamp removal ('contour' or 'circle')
+        stamp_removal_method: Method to use for stamp removal ('nothing', 'contour', 'circle', or 'blue')
     """
     # Apply stamp removal if requested
     actual_image_path = image_path
@@ -55,14 +52,11 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
                 "debug": False
             }
             
-            # Use provided parameters or defaults
-            params = {**default_params, **(stamp_params or {})}
-            
             # Process the image to remove stamps using circle detection
             process_image_remove_stamps(
                 image_path,
                 temp_path,
-                **params
+                **default_params
             )
         else:  # default to contour method
             # Default parameters for contour-based stamp removal
@@ -73,14 +67,11 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
                 "debug": False
             }
             
-            # Use provided parameters or defaults
-            params = {**default_params, **(stamp_params or {})}
-            
             # Process the image to remove stamps using contour-based method
             process_image_remove_stamps_contour_based(
                 image_path,
                 temp_path,
-                **params
+                **default_params
             )
         
         # Use the stamp-removed image for further processing
@@ -101,7 +92,6 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
         rectangles.extend(get_bounding_rectangles(i, j, full_text, coordinates))
     
     if stamp_removal_method == "blue":
-
         rectangles += find_blue_squares(actual_image_path)
 
     # Use the rotated image path if image was rotated
@@ -133,8 +123,5 @@ if __name__ == "__main__":
         output_path, 
         pd_funcs, 
         get_image_data_tesseract,
-        remove_stamps=True,
-        stamp_params={
-            "debug": True
-        }
+        stamp_removal_method="contour"
     )

@@ -6,7 +6,6 @@ from fastapi import FastAPI, File, Response, UploadFile
 
 from parse import *
 from read import (
-    get_image_data_easyocr,
     get_image_data_tesseract,
     images_to_pdf,
     pdf_to_images,
@@ -37,7 +36,6 @@ async def read_root():
 )
 async def upload(
     file: UploadFile = File(...),
-    ocr_engine: Literal["tesseract", "easyocr"] = "tesseract",
     date_year_max: int = 2016,
     auto_rotate: bool = True,
     stamp_removal_method: Literal["nothing","contour", "circle", "blue"] = "contour"
@@ -51,16 +49,8 @@ async def upload(
         find_numeric_sequences,
     ]
     
-    # Auto-rotate is only supported with Tesseract engine
-    if auto_rotate and ocr_engine != "tesseract":
-        auto_rotate = False
-        logger.warning("Auto-rotate is only supported with Tesseract engine. Disabling auto-rotate.")
-    
-    # Choose the appropriate OCR function based on engine
-    get_image_data = get_image_data_tesseract if ocr_engine == "tesseract" else get_image_data_easyocr
-    
-    # Only providing the remove_stamps parameter, no detailed stamp parameters in API
-    stamp_params = None
+    # Choose the OCR function
+    get_image_data = get_image_data_tesseract
 
     # Create a temporary directory for all files
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -88,7 +78,6 @@ async def upload(
                         f"{output_images_dir}/{img}",
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
-                        stamp_params=stamp_params,
                         stamp_removal_method=stamp_removal_method
                     )
                 images_to_pdf(output_images_dir, output_path)
@@ -114,7 +103,6 @@ async def upload(
                         f"{output_images_dir}/{img}",
                         pd_funcs,
                         lambda img_path: get_image_data(img_path, auto_rotate),
-                        stamp_params=stamp_params,
                         stamp_removal_method=stamp_removal_method
                     )
                 
@@ -127,7 +115,6 @@ async def upload(
                     output_path,
                     pd_funcs,
                     lambda img_path: get_image_data(img_path, auto_rotate),
-                    stamp_params=stamp_params,
                     stamp_removal_method=stamp_removal_method
                 )
             else:

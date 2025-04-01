@@ -1,4 +1,3 @@
-# easyocr
 fastapi
 fastapi-cli
 img2pdf

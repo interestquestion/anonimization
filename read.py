@@ -3,7 +3,6 @@ import subprocess
 import time
 import logging
 import cv2
-# import easyocr
 import img2pdf
 import numpy as np
 import pytesseract
@@ -27,8 +26,6 @@ try:
     logger.info("LibreOffice service started.")
 except Exception as e:
     soffice_process = None
-
-# reader = easyocr.Reader(["ru"])
 
 TARGET_HEIGHT = 2048
 RESIZE_FACTOR = 1
@@ -176,56 +173,6 @@ def get_image_data_tesseract(image_path, auto_rotate=False):
     
     # Always return four values for consistency
     return full_text, coordinates, was_rotated, actual_image_path
-
-
-def get_image_data_easyocr(image_path, auto_rotate=False):
-    """Get text and coordinates from an image using EasyOCR."""
-    if auto_rotate:
-        logger.warning("Auto-rotate requested with easyocr engine - this feature is only supported with tesseract")
-        
-    try:
-        image = cv2.imread(image_path)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    except Exception as e:
-        raise ValueError(f"Unable to read image file: {e}")
-
-    # Распознавание текста
-    # smaller boxes
-    result = reader.readtext(
-        image,
-        detail=1,
-        width_ths=0.1,
-        height_ths=0.1,
-    )
-
-    full_text = ""
-    coordinates = []
-
-    for bbox, text, prob in result:
-        x_min, y_min = bbox[0]
-        x_max, y_max = bbox[2]
-
-        # Добавляем каждый символ в полный текст и сохраняем его координаты
-        for char in text:
-            full_text += char
-            char_info = {
-                "left": x_min,
-                "top": y_min,
-                "width": x_max - x_min,
-                "height": y_max - y_min,
-            }
-            coordinates.append(char_info)
-        # Добавляем пробел между словами
-        full_text += " "
-        coordinates.append(None)
-
-    # Удаляем последний лишний пробел и None
-    if full_text and full_text[-1] == " ":
-        full_text = full_text[:-1]
-        coordinates = coordinates[:-1]
-
-    # Return four values for consistency with the Tesseract function
-    return full_text, coordinates, False, image_path
 
 
 def get_bounding_rectangles(i, j, full_text, coordinates):

@@ -75,6 +75,9 @@ def detect_round_stamps(image: np.ndarray, min_radius: int = 50, max_radius: int
         if (x - r < 0 or x + r >= image.shape[1] or 
             y - r < 0 or y + r >= image.shape[0]):
             continue
+
+        if r / image.shape[0] > 0.1:
+            continue
         
         # Apply color filtering to detect only colored stamps (typically blue)
         if color_filtering and len(image.shape) == 3:

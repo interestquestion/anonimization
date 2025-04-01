@@ -46,12 +46,12 @@ def process_image(image_path: str, output_path: str, pd_funcs: list[Callable], g
                 "min_radius": 50,
                 "max_radius": 150,
                 "param1": 100,
-                "param2": 60,
+                "param2": 70,
                 "dp": 1.2,
                 "color_filtering": True,
-                "blue_threshold": 0.05,
+                "blue_threshold": 0.1,
                 "dark_threshold": 150,
-                "bottom_half_only": False,
+                "bottom_half_only": True,
                 "white_fill": True,
                 "debug": False
             }

@@ -108,7 +108,7 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
             logger.info(f"Name detected (3 words): {detected_name} (anonymized).")
         elif previous_word_tags[-2:] in [["фам", "имя"], ["имя", "фам"]]:
             detected_name = text[previous_word_positions[-2][0]:previous_word_positions[-1][1]+2]
-            if (len(previous_words[-1]) < 4 or len(previous_words[-2]) < 4 or len(previous_words[-1]) * len(previous_words[-2]) < 20):
+            if (len(previous_words[-1]) < 4 or len(previous_words[-2]) < 4 or len(previous_words[-1]) * len(previous_words[-2]) < 20) and not (len(previous_words[-2]) > 4 and len(previous_words[-1]) == 2 and previous_words[-1].isupper()):
                 continue
             names_positions += previous_word_positions[-2:]
             logger.info(f"Name detected (2 words): {detected_name} (anonymized).")
@@ -123,7 +123,7 @@ def get_all_names_mystem(text) -> list[tuple[int, int]]:
         r'(?:фамилия\b)[\s:]*([А-ЯЁ][а-яА-ЯЁё-]+)',
         r'(?:имя\b)[\s:]*([А-ЯЁ][а-яА-ЯЁё-]+(?:\s+[А-ЯЁ][а-яА-ЯЁё-]+){0,1})',
         r'(?:отчество\b)[\s:]*([А-ЯЁ][а-яА-ЯЁё-]+)',
-        r'\bФИО\b[\s:]*([А-ЯЁ][а-яА-ЯЁё-]+(?:\s+[А-ЯЁ][а-яА-ЯЁё-]+){1,2})'
+        r'\bФИО( пациента)?\b[\s:]*([А-ЯЁ][а-яА-ЯЁё-]+(?:\s+[А-ЯЁ][а-яА-ЯЁё-]*){1,2})'
     ]
     
     for pattern in name_patterns:
